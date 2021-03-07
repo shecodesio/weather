@@ -1,9 +1,32 @@
-.App {
-  max-width: 600px;
-  margin: 30px auto;
+@font-face {
+  font-family: "Cerebri Sans";
+  src: url(/fonts/Cerebri-Sans/CerebriSans-Light.eot);
+  src: url(/fonts/Cerebri-Sans/CerebriSans-Light.ttf);
+  font-weight: 300;
+  font-style: normal;
 }
 
-.App footer {
-  font-size: 11px;
-  margin: 10px 0;
+@font-face {
+  font-family: "Cerebri Sans";
+  src: url(/fonts/Cerebri-Sans/CerebriSans-Regular.eot);
+  src: url(/fonts/Cerebri-Sans/CerebriSans-Regular.ttf);
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Cerebri Sans";
+  src: url(/fonts/Cerebri-Sans/CerebriSans-Bold.eot);
+  src: url(/fonts/Cerebri-Sans/CerebriSans-Bold.ttf);
+  font-weight: 700;
+  font-style: normal;
+}
+
+body {
+	background: #f9f7fe;
+}
+
+.App {
+  max-width: 800px;
+  margin: 60px auto;
 }

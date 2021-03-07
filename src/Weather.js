@@ -39,18 +39,18 @@ export default function Weather(props) {
   if (weatherData.ready) {
     return (
       <div className="Weather">
+      <img src="/images/logo.png" className="logo" />
         <form onSubmit={handleSubmit}>
           <div className="row">
-            <div className="col-9">
+            <div className="col-9 ">
               <input
                 type="search"
                 placeholder="Enter a city.."
-                className="form-control"
-                autoFocus="on"
+                className="form-control search-input"
                 onChange={handleCityChange}
               />
             </div>
-            <div className="col-3">
+            <div className="col-3 p-0">
               <input
                 type="submit"
                 value="Search"
@@ -61,6 +61,26 @@ export default function Weather(props) {
         </form>
         <WeatherInfo data={weatherData} />
         <WeatherForecast city={weatherData.city} />
+        <footer>
+          This project was coded by{" "}
+          <a href="https://www.delac.io/" target="_blank">
+            SheCodes
+          </a>{" "}
+          and is{" "}
+          <a
+            href="https://github.com/wecodeschool/react-weather-app"
+            target="_blank"
+          >
+            open-sourced on GitHub
+          </a>{" "}
+          and{" "}
+          <a
+            href="https://suspicious-beaver-111c4d.netlify.com/"
+            target="_blank"
+          >
+            hosted on Netlify
+          </a>
+        </footer>
       </div>
     );
   } else {
