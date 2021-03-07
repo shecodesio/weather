@@ -40,7 +40,7 @@ export default function Weather(props) {
     return (
       <div className="Weather">
       <a href="https://www.shecodes.io/" target="_blank">
-        <img src="/images/logo.png" className="logo" alt="SheCodes Logo" />
+        <img src="/images/logo.png" className="logo" alt="SheCodes Logo" rel="noopener noreferrer" />
       </a>
         <form onSubmit={handleSubmit}>
           <div className="row">
