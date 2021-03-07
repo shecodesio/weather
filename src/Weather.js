@@ -39,7 +39,7 @@ export default function Weather(props) {
   if (weatherData.ready) {
     return (
       <div className="Weather">
-      <img src="/images/logo.png" className="logo" />
+      <img src="/images/logo.png" className="logo" alt="SheCodes Logo" />
         <form onSubmit={handleSubmit}>
           <div className="row">
             <div className="col-9 ">
