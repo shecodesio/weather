@@ -9,12 +9,12 @@ var aTypedArray = ArrayBufferViewCore.aTypedArray;
 var exportTypedArrayMethod = ArrayBufferViewCore.exportTypedArrayMethod;
 
 var FORCED = fails(function () {
-  // eslint-disable-next-line no-undef
+  /* global Int8Array -- safe */
   new Int8Array(1).set({});
 });
 
 // `%TypedArray%.prototype.set` method
-// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.set
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.set
 exportTypedArrayMethod('set', function set(arrayLike /* , offset */) {
   aTypedArray(this);
   var offset = toOffset(arguments.length > 1 ? arguments[1] : undefined, 1);
