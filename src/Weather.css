@@ -10,7 +10,6 @@
 .Weather .logo {
   max-width: 150px;
   display: block;
-
 }
 
 .Weather form {
@@ -23,7 +22,7 @@
   background: #f9f7fe;
   border: none;
   padding: 15px 20px;
-  display: inline-block;;
+  display: inline-block;
   border-radius: 6px;
   color: rgba(39, 33, 66, 0.4);
   font-size: 16px;
@@ -39,7 +38,6 @@
   border: none;
   height: 50px;
 }
-
 
 .Weather .search-input::placeholder {
   line-height: 20px;
@@ -71,7 +69,7 @@
 }
 
 .Weather li strong {
-  color: #F65282;
+  color: #f65282;
   font-weight: normal;
 }
 
@@ -105,9 +103,9 @@
   margin-top: 40px;
   line-height: 18px;
   text-align: center;
-  color:  rgba(39, 33, 66, 0.4);
+  color: rgba(39, 33, 66, 0.4);
 }
 
 .Weather footer a {
-  color: #885DF1;
+  color: #885df1;
 }
