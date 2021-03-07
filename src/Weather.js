@@ -39,7 +39,9 @@ export default function Weather(props) {
   if (weatherData.ready) {
     return (
       <div className="Weather">
-      <img src="/images/logo.png" className="logo" alt="SheCodes Logo" />
+      <a href="https://www.shecodes.io/" target="_blank">
+        <img src="/images/logo.png" className="logo" alt="SheCodes Logo" />
+      </a>
         <form onSubmit={handleSubmit}>
           <div className="row">
             <div className="col-9 ">
@@ -63,20 +65,20 @@ export default function Weather(props) {
         <WeatherForecast city={weatherData.city} />
         <footer>
           This project was coded by{" "}
-          <a href="https://www.delac.io/" target="_blank">
+          <a href="https://www.delac.io/" target="_blank" rel="noopener noreferrer">
             SheCodes
           </a>{" "}
           and is{" "}
           <a
             href="https://github.com/wecodeschool/react-weather-app"
-            target="_blank"
+            target="_blank" rel="noopener noreferrer"
           >
             open-sourced on GitHub
           </a>{" "}
           and{" "}
           <a
             href="https://suspicious-beaver-111c4d.netlify.com/"
-            target="_blank"
+            target="_blank" rel="noopener noreferrer"
           >
             hosted on Netlify
           </a>
