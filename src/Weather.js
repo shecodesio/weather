@@ -65,19 +65,19 @@ export default function Weather(props) {
         <WeatherForecast city={weatherData.city} />
         <footer>
           This project was coded by{" "}
-          <a href="https://www.delac.io/" target="_blank" rel="noopener noreferrer">
+          <a href="https://www.shecodes.io/" target="_blank" rel="noopener noreferrer">
             SheCodes
           </a>{" "}
           and is{" "}
           <a
-            href="https://github.com/wecodeschool/react-weather-app"
+            href="https://github.com/shecodesio/weather"
             target="_blank" rel="noopener noreferrer"
           >
             open-sourced on GitHub
           </a>{" "}
           and{" "}
           <a
-            href="https://suspicious-beaver-111c4d.netlify.com/"
+            href="https://shecodes-weather.netlify.app/"
             target="_blank" rel="noopener noreferrer"
           >
             hosted on Netlify
