@@ -14,10 +14,15 @@
 
 .WeatherForecast .forecast-temperature {
   font-style: normal;
-  font-weight: bold;
   font-size: 18px;
-  line-height: 23px;
+  line-height: 1.5;
   color: #f65282;
+  font-weight: bold;
+}
+
+.WeatherForecast .forecast-temperature-min {
+  margin-left: 10px;
+  opacity: 0.6;
 }
 
 .Weather .WeatherForecast canvas {

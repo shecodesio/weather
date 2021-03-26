@@ -11,6 +11,7 @@ export default function Weather(props) {
   function handleResponse(response) {
     setWeatherData({
       ready: true,
+      coordinates: response.data.coord,
       temperature: response.data.main.temp,
       humidity: response.data.main.humidity,
       date: new Date(response.data.dt * 1000),
@@ -66,7 +67,7 @@ export default function Weather(props) {
           </div>
         </form>
         <WeatherInfo data={weatherData} />
-        <WeatherForecast city={weatherData.city} />
+        <WeatherForecast coordinates={weatherData.coordinates} />
         <footer>
           This project was coded by{" "}
           <a
@@ -84,7 +85,7 @@ export default function Weather(props) {
           >
             open-sourced on GitHub
           </a>{" "}
-          and{" "}
+          and
           <a
             href="https://shecodes-weather.netlify.app/"
             target="_blank"
