@@ -85,7 +85,7 @@ export default function Weather(props) {
           >
             open-sourced on GitHub
           </a>{" "}
-          and
+          and{" "}
           <a
             href="https://shecodes-weather.netlify.app/"
             target="_blank"
