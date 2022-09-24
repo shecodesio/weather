@@ -98,11 +98,10 @@ if (parsedResourceQuery.logging) {
 if (typeof parsedResourceQuery.reconnect !== "undefined") {
   options.reconnect = Number(parsedResourceQuery.reconnect);
 }
-
-logEnabledFeatures(enabledFeatures);
 /**
  * @param {string} level
  */
+
 
 function setAllLogLevel(level) {
   // This is needed because the HMR logger operate separately from dev server logger
@@ -114,6 +113,7 @@ if (options.logging) {
   setAllLogLevel(options.logging);
 }
 
+logEnabledFeatures(enabledFeatures);
 self.addEventListener("beforeunload", function () {
   status.isUnloading = true;
 });
