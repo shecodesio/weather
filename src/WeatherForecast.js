@@ -33,10 +33,9 @@ export default function WeatherForecast(props) {
       </div>
     );
   } else {
-    let apiKey = "5863935ee9cca4c02ed68203f807c65b";
-    let url = `https://api.openweathermap.org/data/2.5/onecall?lat=${props.coordinates.lat}&lon=${props.coordinates.lon}&appid=${apiKey}&units=metric`;
-
-    axios.get(url).then(handleForecastResponse);
+    let apiKey = "eac360db5fc86ft86450f3693e73o43f";
+    let apiUrl = `https://api.shecodes.io/v1/weather/forecast?query=${props.city}&key=${apiKey}&units=metric`;
+    axios.get(apiUrl).then(handleForecastResponse);
 
     return null;
   }
