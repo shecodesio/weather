@@ -10,13 +10,13 @@ export default function WeatherForecastPreview(props) {
   }
 
   function maxTemperature() {
-    let temperature = Math.round(props.data.temperature.max);
+    let temperature = Math.round(props.data.temperature.maximum);
 
     return `${temperature}°`;
   }
 
   function minTemperature() {
-    let temperature = Math.round(props.data.temperature.min);
+    let temperature = Math.round(props.data.temperature.minimum);
 
     return `${temperature}°`;
   }
