@@ -4,4 +4,5 @@
 
 .WeatherInfo .temperature-container {
   margin-top: 30px;
+  align-items: center;
 }
