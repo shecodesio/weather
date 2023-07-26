@@ -20,7 +20,11 @@ const makeSerializable = require("../util/makeSerializable");
 const ConstDependency = require("./ConstDependency");
 const SystemRuntimeModule = require("./SystemRuntimeModule");
 
+/** @typedef {import("../../declarations/WebpackOptions").JavascriptParserOptions} JavascriptParserOptions */
 /** @typedef {import("../Compiler")} Compiler */
+/** @typedef {import("../Dependency").DependencyLocation} DependencyLocation */
+/** @typedef {import("../javascript/JavascriptParser")} Parser */
+/** @typedef {import("../javascript/JavascriptParser").Range} Range */
 
 const PLUGIN_NAME = "SystemPlugin";
 
@@ -46,11 +50,19 @@ class SystemPlugin {
 						compilation.addRuntimeModule(chunk, new SystemRuntimeModule());
 					});
 
+				/**
+				 * @param {Parser} parser parser parser
+				 * @param {JavascriptParserOptions} parserOptions parserOptions
+				 * @returns {void}
+				 */
 				const handler = (parser, parserOptions) => {
 					if (parserOptions.system === undefined || !parserOptions.system) {
 						return;
 					}
 
+					/**
+					 * @param {string} name name
+					 */
 					const setNotSupported = name => {
 						parser.hooks.evaluateTypeof
 							.for(name)
@@ -90,22 +102,28 @@ class SystemPlugin {
 					setNotSupported("System.register");
 
 					parser.hooks.expression.for("System").tap(PLUGIN_NAME, expr => {
-						const dep = new ConstDependency(RuntimeGlobals.system, expr.range, [
-							RuntimeGlobals.system
-						]);
-						dep.loc = expr.loc;
+						const dep = new ConstDependency(
+							RuntimeGlobals.system,
+							/** @type {Range} */ (expr.range),
+							[RuntimeGlobals.system]
+						);
+						dep.loc = /** @type {DependencyLocation} */ (expr.loc);
 						parser.state.module.addPresentationalDependency(dep);
 						return true;
 					});
 
 					parser.hooks.call.for("System.import").tap(PLUGIN_NAME, expr => {
 						parser.state.module.addWarning(
-							new SystemImportDeprecationWarning(expr.loc)
+							new SystemImportDeprecationWarning(
+								/** @type {DependencyLocation} */ (expr.loc)
+							)
 						);
 
 						return parser.hooks.importCall.call({
 							type: "ImportExpression",
-							source: expr.arguments[0],
+							source:
+								/** @type {import("estree").Literal} */
+								(expr.arguments[0]),
 							loc: expr.loc,
 							range: expr.range
 						});
@@ -124,6 +142,9 @@ class SystemPlugin {
 }
 
 class SystemImportDeprecationWarning extends WebpackError {
+	/**
+	 * @param {DependencyLocation} loc location
+	 */
 	constructor(loc) {
 		super(
 			"System.import() is deprecated and will be removed soon. Use import() instead.\n" +

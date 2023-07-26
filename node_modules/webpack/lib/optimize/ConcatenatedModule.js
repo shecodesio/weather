@@ -27,6 +27,7 @@ const createHash = require("../util/createHash");
 const { makePathsRelative } = require("../util/identifier");
 const makeSerializable = require("../util/makeSerializable");
 const propertyAccess = require("../util/propertyAccess");
+const { propertyName } = require("../util/propertyName");
 const {
 	filterRuntime,
 	intersectRuntime,
@@ -1484,7 +1485,7 @@ class ConcatenatedModule extends Module {
 			const definitions = [];
 			for (const [key, value] of exportsMap) {
 				definitions.push(
-					`\n  ${JSON.stringify(key)}: ${runtimeTemplate.returningFunction(
+					`\n  ${propertyName(key)}: ${runtimeTemplate.returningFunction(
 						value(requestShortener)
 					)}`
 				);
@@ -1529,9 +1530,9 @@ class ConcatenatedModule extends Module {
 						true
 					);
 					nsObj.push(
-						`\n  ${JSON.stringify(
-							usedName
-						)}: ${runtimeTemplate.returningFunction(finalName)}`
+						`\n  ${propertyName(usedName)}: ${runtimeTemplate.returningFunction(
+							finalName
+						)}`
 					);
 				}
 			}
@@ -1610,7 +1611,7 @@ ${defineGetters}`
 						result.add(`if (${condition}) {\n`);
 					}
 					result.add(
-						`var ${info.name} = __webpack_require__(${JSON.stringify(
+						`var ${info.name} = ${RuntimeGlobals.require}(${JSON.stringify(
 							chunkGraph.getModuleId(info.module)
 						)});`
 					);

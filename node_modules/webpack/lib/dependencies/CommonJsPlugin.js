@@ -34,9 +34,21 @@ const {
 } = require("../javascript/JavascriptParserHelpers");
 const CommonJsExportRequireDependency = require("./CommonJsExportRequireDependency");
 
+/** @typedef {import("../../declarations/WebpackOptions").JavascriptParserOptions} JavascriptParserOptions */
+/** @typedef {import("../Compilation")} Compilation */
+/** @typedef {import("../Compiler")} Compiler */
+/** @typedef {import("../Dependency").DependencyLocation} DependencyLocation */
+/** @typedef {import("../Module").BuildInfo} BuildInfo */
+/** @typedef {import("../javascript/JavascriptParser")} Parser */
+
 const PLUGIN_NAME = "CommonJsPlugin";
 
 class CommonJsPlugin {
+	/**
+	 * Apply the plugin
+	 * @param {Compiler} compiler the compiler instance
+	 * @returns {void}
+	 */
 	apply(compiler) {
 		compiler.hooks.compilation.tap(
 			PLUGIN_NAME,
@@ -162,6 +174,11 @@ class CommonJsPlugin {
 						);
 					});
 
+				/**
+				 * @param {Parser} parser parser parser
+				 * @param {JavascriptParserOptions} parserOptions parserOptions
+				 * @returns {void}
+				 */
 				const handler = (parser, parserOptions) => {
 					if (parserOptions.commonjs !== undefined && !parserOptions.commonjs)
 						return;
@@ -183,28 +200,32 @@ class CommonJsPlugin {
 							)
 						);
 					parser.hooks.expression
-						.for("module.loaded")
+						.for(RuntimeGlobals.moduleLoaded)
 						.tap(PLUGIN_NAME, expr => {
-							parser.state.module.buildInfo.moduleConcatenationBailout =
-								"module.loaded";
+							/** @type {BuildInfo} */
+							(parser.state.module.buildInfo).moduleConcatenationBailout =
+								RuntimeGlobals.moduleLoaded;
 							const dep = new RuntimeRequirementsDependency([
 								RuntimeGlobals.moduleLoaded
 							]);
-							dep.loc = expr.loc;
+							dep.loc = /** @type {DependencyLocation} */ (expr.loc);
 							parser.state.module.addPresentationalDependency(dep);
 							return true;
 						});
 
-					parser.hooks.expression.for("module.id").tap(PLUGIN_NAME, expr => {
-						parser.state.module.buildInfo.moduleConcatenationBailout =
-							"module.id";
-						const dep = new RuntimeRequirementsDependency([
-							RuntimeGlobals.moduleId
-						]);
-						dep.loc = expr.loc;
-						parser.state.module.addPresentationalDependency(dep);
-						return true;
-					});
+					parser.hooks.expression
+						.for(RuntimeGlobals.moduleId)
+						.tap(PLUGIN_NAME, expr => {
+							/** @type {BuildInfo} */
+							(parser.state.module.buildInfo).moduleConcatenationBailout =
+								RuntimeGlobals.moduleId;
+							const dep = new RuntimeRequirementsDependency([
+								RuntimeGlobals.moduleId
+							]);
+							dep.loc = /** @type {DependencyLocation} */ (expr.loc);
+							parser.state.module.addPresentationalDependency(dep);
+							return true;
+						});
 
 					parser.hooks.evaluateIdentifier.for("module.hot").tap(
 						PLUGIN_NAME,
@@ -234,10 +255,10 @@ class HarmonyModuleDecoratorRuntimeModule extends RuntimeModule {
 	}
 
 	/**
-	 * @returns {string} runtime code
+	 * @returns {string | null} runtime code
 	 */
 	generate() {
-		const { runtimeTemplate } = this.compilation;
+		const { runtimeTemplate } = /** @type {Compilation} */ (this.compilation);
 		return Template.asString([
 			`${
 				RuntimeGlobals.harmonyModuleDecorator
@@ -264,10 +285,10 @@ class NodeModuleDecoratorRuntimeModule extends RuntimeModule {
 	}
 
 	/**
-	 * @returns {string} runtime code
+	 * @returns {string | null} runtime code
 	 */
 	generate() {
-		const { runtimeTemplate } = this.compilation;
+		const { runtimeTemplate } = /** @type {Compilation} */ (this.compilation);
 		return Template.asString([
 			`${RuntimeGlobals.nodeModuleDecorator} = ${runtimeTemplate.basicFunction(
 				"module",

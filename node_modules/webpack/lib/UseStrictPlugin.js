@@ -13,6 +13,10 @@ const {
 const ConstDependency = require("./dependencies/ConstDependency");
 
 /** @typedef {import("./Compiler")} Compiler */
+/** @typedef {import("./Dependency").DependencyLocation} DependencyLocation */
+/** @typedef {import("./Module").BuildInfo} BuildInfo */
+/** @typedef {import("./javascript/JavascriptParser")} JavascriptParser */
+/** @typedef {import("./javascript/JavascriptParser").Range} Range */
 
 const PLUGIN_NAME = "UseStrictPlugin";
 
@@ -26,6 +30,9 @@ class UseStrictPlugin {
 		compiler.hooks.compilation.tap(
 			PLUGIN_NAME,
 			(compilation, { normalModuleFactory }) => {
+				/**
+				 * @param {JavascriptParser} parser the parser
+				 */
 				const handler = parser => {
 					parser.hooks.program.tap(PLUGIN_NAME, ast => {
 						const firstNode = ast.body[0];
@@ -38,10 +45,14 @@ class UseStrictPlugin {
 							// Remove "use strict" expression. It will be added later by the renderer again.
 							// This is necessary in order to not break the strict mode when webpack prepends code.
 							// @see https://github.com/webpack/webpack/issues/1970
-							const dep = new ConstDependency("", firstNode.range);
-							dep.loc = firstNode.loc;
+							const dep = new ConstDependency(
+								"",
+								/** @type {Range} */ (firstNode.range)
+							);
+							dep.loc = /** @type {DependencyLocation} */ (firstNode.loc);
 							parser.state.module.addPresentationalDependency(dep);
-							parser.state.module.buildInfo.strict = true;
+							/** @type {BuildInfo} */
+							(parser.state.module.buildInfo).strict = true;
 						}
 					});
 				};

@@ -15,14 +15,26 @@ const ConstDependency = require("./dependencies/ConstDependency");
 const { evaluateToString } = require("./javascript/JavascriptParserHelpers");
 const { parseResource } = require("./util/identifier");
 
-/** @typedef {import("estree").Expression} ExpressionNode */
-/** @typedef {import("estree").Super} SuperNode */
+/** @typedef {import("estree").AssignmentProperty} AssignmentProperty */
+/** @typedef {import("estree").Expression} Expression */
+/** @typedef {import("estree").Identifier} Identifier */
+/** @typedef {import("estree").Pattern} Pattern */
+/** @typedef {import("estree").SourceLocation} SourceLocation */
+/** @typedef {import("estree").Statement} Statement */
+/** @typedef {import("estree").Super} Super */
 /** @typedef {import("./Compiler")} Compiler */
+/** @typedef {import("./javascript/BasicEvaluatedExpression")} BasicEvaluatedExpression */
+/** @typedef {import("./javascript/JavascriptParser")} JavascriptParser */
+/** @typedef {import("./javascript/JavascriptParser").Range} Range */
 
+/**
+ * @param {Set<string>} declarations set of declarations
+ * @param {Identifier | Pattern} pattern pattern to collect declarations from
+ */
 const collectDeclaration = (declarations, pattern) => {
 	const stack = [pattern];
 	while (stack.length > 0) {
-		const node = stack.pop();
+		const node = /** @type {Pattern} */ (stack.pop());
 		switch (node.type) {
 			case "Identifier":
 				declarations.add(node.name);
@@ -39,7 +51,7 @@ const collectDeclaration = (declarations, pattern) => {
 				break;
 			case "ObjectPattern":
 				for (const property of node.properties) {
-					stack.push(property.value);
+					stack.push(/** @type {AssignmentProperty} */ (property).value);
 				}
 				break;
 			case "RestElement":
@@ -49,8 +61,14 @@ const collectDeclaration = (declarations, pattern) => {
 	}
 };
 
+/**
+ * @param {Statement} branch branch to get hoisted declarations from
+ * @param {boolean} includeFunctionDeclarations whether to include function declarations
+ * @returns {Array<string>} hoisted declarations
+ */
 const getHoistedDeclarations = (branch, includeFunctionDeclarations) => {
 	const declarations = new Set();
+	/** @type {Array<TODO | null | undefined>} */
 	const stack = [branch];
 	while (stack.length > 0) {
 		const node = stack.pop();
@@ -98,7 +116,7 @@ const getHoistedDeclarations = (branch, includeFunctionDeclarations) => {
 				break;
 			case "FunctionDeclaration":
 				if (includeFunctionDeclarations) {
-					collectDeclaration(declarations, node.id);
+					collectDeclaration(declarations, /** @type {Identifier} */ (node.id));
 				}
 				break;
 			case "VariableDeclaration":
@@ -136,6 +154,9 @@ class ConstPlugin {
 					new CachedConstDependency.Template()
 				);
 
+				/**
+				 * @param {JavascriptParser} parser the parser
+				 */
 				const handler = parser => {
 					parser.hooks.statementIf.tap(PLUGIN_NAME, statement => {
 						if (parser.scope.isAsmJs) return;
@@ -143,8 +164,11 @@ class ConstPlugin {
 						const bool = param.asBool();
 						if (typeof bool === "boolean") {
 							if (!param.couldHaveSideEffects()) {
-								const dep = new ConstDependency(`${bool}`, param.range);
-								dep.loc = statement.loc;
+								const dep = new ConstDependency(
+									`${bool}`,
+									/** @type {Range} */ (param.range)
+								);
+								dep.loc = /** @type {SourceLocation} */ (statement.loc);
 								parser.state.module.addPresentationalDependency(dep);
 							} else {
 								parser.walkExpression(statement.test);
@@ -200,9 +224,9 @@ class ConstPlugin {
 								}
 								const dep = new ConstDependency(
 									replacement,
-									branchToRemove.range
+									/** @type {Range} */ (branchToRemove.range)
 								);
-								dep.loc = branchToRemove.loc;
+								dep.loc = /** @type {SourceLocation} */ (branchToRemove.loc);
 								parser.state.module.addPresentationalDependency(dep);
 							}
 							return bool;
@@ -216,8 +240,11 @@ class ConstPlugin {
 							const bool = param.asBool();
 							if (typeof bool === "boolean") {
 								if (!param.couldHaveSideEffects()) {
-									const dep = new ConstDependency(` ${bool}`, param.range);
-									dep.loc = expression.loc;
+									const dep = new ConstDependency(
+										` ${bool}`,
+										/** @type {Range} */ (param.range)
+									);
+									dep.loc = /** @type {SourceLocation} */ (expression.loc);
 									parser.state.module.addPresentationalDependency(dep);
 								} else {
 									parser.walkExpression(expression.test);
@@ -236,8 +263,11 @@ class ConstPlugin {
 								const branchToRemove = bool
 									? expression.alternate
 									: expression.consequent;
-								const dep = new ConstDependency("0", branchToRemove.range);
-								dep.loc = branchToRemove.loc;
+								const dep = new ConstDependency(
+									"0",
+									/** @type {Range} */ (branchToRemove.range)
+								);
+								dep.loc = /** @type {SourceLocation} */ (branchToRemove.loc);
 								parser.state.module.addPresentationalDependency(dep);
 								return bool;
 							}
@@ -313,8 +343,11 @@ class ConstPlugin {
 										//
 										//   returnfalse&&'foo'
 										//
-										const dep = new ConstDependency(` ${bool}`, param.range);
-										dep.loc = expression.loc;
+										const dep = new ConstDependency(
+											` ${bool}`,
+											/** @type {Range} */ (param.range)
+										);
+										dep.loc = /** @type {SourceLocation} */ (expression.loc);
 										parser.state.module.addPresentationalDependency(dep);
 									} else {
 										parser.walkExpression(expression.left);
@@ -322,9 +355,9 @@ class ConstPlugin {
 									if (!keepRight) {
 										const dep = new ConstDependency(
 											"0",
-											expression.right.range
+											/** @type {Range} */ (expression.right.range)
 										);
-										dep.loc = expression.loc;
+										dep.loc = /** @type {SourceLocation} */ (expression.loc);
 										parser.state.module.addPresentationalDependency(dep);
 									}
 									return keepRight;
@@ -363,15 +396,18 @@ class ConstPlugin {
 										//
 										//   returnnull??'foo'
 										//
-										const dep = new ConstDependency(" null", param.range);
-										dep.loc = expression.loc;
+										const dep = new ConstDependency(
+											" null",
+											/** @type {Range} */ (param.range)
+										);
+										dep.loc = /** @type {SourceLocation} */ (expression.loc);
 										parser.state.module.addPresentationalDependency(dep);
 									} else {
 										const dep = new ConstDependency(
 											"0",
-											expression.right.range
+											/** @type {Range} */ (expression.right.range)
 										);
-										dep.loc = expression.loc;
+										dep.loc = /** @type {SourceLocation} */ (expression.loc);
 										parser.state.module.addPresentationalDependency(dep);
 										parser.walkExpression(expression.left);
 									}
@@ -382,9 +418,9 @@ class ConstPlugin {
 						}
 					);
 					parser.hooks.optionalChaining.tap(PLUGIN_NAME, expr => {
-						/** @type {ExpressionNode[]} */
+						/** @type {Expression[]} */
 						const optionalExpressionsStack = [];
-						/** @type {ExpressionNode|SuperNode} */
+						/** @type {Expression | Super} */
 						let next = expr.expression;
 
 						while (
@@ -395,7 +431,7 @@ class ConstPlugin {
 								if (next.optional) {
 									// SuperNode can not be optional
 									optionalExpressionsStack.push(
-										/** @type {ExpressionNode} */ (next.object)
+										/** @type {Expression} */ (next.object)
 									);
 								}
 								next = next.object;
@@ -403,7 +439,7 @@ class ConstPlugin {
 								if (next.optional) {
 									// SuperNode can not be optional
 									optionalExpressionsStack.push(
-										/** @type {ExpressionNode} */ (next.callee)
+										/** @type {Expression} */ (next.callee)
 									);
 								}
 								next = next.callee;
@@ -412,7 +448,9 @@ class ConstPlugin {
 
 						while (optionalExpressionsStack.length) {
 							const expression = optionalExpressionsStack.pop();
-							const evaluated = parser.evaluateExpression(expression);
+							const evaluated = parser.evaluateExpression(
+								/** @type {Expression} */ (expression)
+							);
 
 							if (evaluated.asNullish()) {
 								// ------------------------------------------
@@ -427,8 +465,11 @@ class ConstPlugin {
 								//
 								// ------------------------------------------
 								//
-								const dep = new ConstDependency(" undefined", expr.range);
-								dep.loc = expr.loc;
+								const dep = new ConstDependency(
+									" undefined",
+									/** @type {Range} */ (expr.range)
+								);
+								dep.loc = /** @type {SourceLocation} */ (expr.loc);
 								parser.state.module.addPresentationalDependency(dep);
 								return true;
 							}
@@ -452,10 +493,10 @@ class ConstPlugin {
 								JSON.stringify(
 									cachedParseResource(parser.state.module.resource).query
 								),
-								expr.range,
+								/** @type {Range} */ (expr.range),
 								"__resourceQuery"
 							);
-							dep.loc = expr.loc;
+							dep.loc = /** @type {SourceLocation} */ (expr.loc);
 							parser.state.module.addPresentationalDependency(dep);
 							return true;
 						});
@@ -478,10 +519,10 @@ class ConstPlugin {
 								JSON.stringify(
 									cachedParseResource(parser.state.module.resource).fragment
 								),
-								expr.range,
+								/** @type {Range} */ (expr.range),
 								"__resourceFragment"
 							);
-							dep.loc = expr.loc;
+							dep.loc = /** @type {SourceLocation} */ (expr.loc);
 							parser.state.module.addPresentationalDependency(dep);
 							return true;
 						});

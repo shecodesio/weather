@@ -126,7 +126,7 @@ class Compiler {
 			/** @type {SyncHook<[]>} */
 			initialize: new SyncHook([]),
 
-			/** @type {SyncBailHook<[Compilation], boolean>} */
+			/** @type {SyncBailHook<[Compilation], boolean | undefined>} */
 			shouldEmit: new SyncBailHook(["compilation"]),
 			/** @type {AsyncSeriesHook<[Stats]>} */
 			done: new AsyncSeriesHook(["stats"]),
@@ -208,7 +208,7 @@ class Compiler {
 		this.root = this;
 		/** @type {string} */
 		this.outputPath = "";
-		/** @type {Watching} */
+		/** @type {Watching | undefined} */
 		this.watching = undefined;
 
 		/** @type {OutputFileSystem} */
@@ -230,15 +230,15 @@ class Compiler {
 		/** @type {Set<string | RegExp>} */
 		this.immutablePaths = new Set();
 
-		/** @type {ReadonlySet<string>} */
+		/** @type {ReadonlySet<string> | undefined} */
 		this.modifiedFiles = undefined;
-		/** @type {ReadonlySet<string>} */
+		/** @type {ReadonlySet<string> | undefined} */
 		this.removedFiles = undefined;
-		/** @type {ReadonlyMap<string, FileSystemInfoEntry | "ignore" | null>} */
+		/** @type {ReadonlyMap<string, FileSystemInfoEntry | "ignore" | null> | undefined} */
 		this.fileTimestamps = undefined;
-		/** @type {ReadonlyMap<string, FileSystemInfoEntry | "ignore" | null>} */
+		/** @type {ReadonlyMap<string, FileSystemInfoEntry | "ignore" | null> | undefined} */
 		this.contextTimestamps = undefined;
-		/** @type {number} */
+		/** @type {number | undefined} */
 		this.fsStartTime = undefined;
 
 		/** @type {ResolverFactory} */
@@ -1011,8 +1011,7 @@ ${other}`);
 				try {
 					this.records = parseJson(content.toString("utf-8"));
 				} catch (e) {
-					e.message = "Cannot parse records: " + e.message;
-					return callback(e);
+					return callback(new Error(`Cannot parse records: ${e.message}`));
 				}
 
 				return callback();
@@ -1074,7 +1073,9 @@ ${other}`);
 		childCompiler.root = this.root;
 		if (Array.isArray(plugins)) {
 			for (const plugin of plugins) {
-				plugin.apply(childCompiler);
+				if (plugin) {
+					plugin.apply(childCompiler);
+				}
 			}
 		}
 		for (const name in this.hooks) {

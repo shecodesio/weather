@@ -65,12 +65,15 @@ const memoize = require("./util/memoize");
 /** @typedef {import("./Module").NeedBuildContext} NeedBuildContext */
 /** @typedef {import("./ModuleGraph")} ModuleGraph */
 /** @typedef {import("./ModuleGraphConnection").ConnectionState} ConnectionState */
+/** @typedef {import("./ModuleTypeConstants").JavaScriptModuleTypes} JavaScriptModuleTypes */
 /** @typedef {import("./NormalModuleFactory")} NormalModuleFactory */
 /** @typedef {import("./Parser")} Parser */
 /** @typedef {import("./RequestShortener")} RequestShortener */
 /** @typedef {import("./ResolverFactory").ResolverWithOptions} ResolverWithOptions */
 /** @typedef {import("./RuntimeTemplate")} RuntimeTemplate */
 /** @typedef {import("./logging/Logger").Logger} WebpackLogger */
+/** @typedef {import("./serialization/ObjectMiddleware").ObjectDeserializerContext} ObjectDeserializerContext */
+/** @typedef {import("./serialization/ObjectMiddleware").ObjectSerializerContext} ObjectSerializerContext */
 /** @typedef {import("./util/Hash")} Hash */
 /** @typedef {import("./util/fs").InputFileSystem} InputFileSystem */
 /** @typedef {import("./util/runtime").RuntimeSpec} RuntimeSpec */
@@ -199,7 +202,7 @@ makeSerializable(
 /**
  * @typedef {Object} NormalModuleCreateData
  * @property {string=} layer an optional layer in which the module is
- * @property {string} type module type
+ * @property {JavaScriptModuleTypes | ""} type module type. When deserializing, this is set to an empty string "".
  * @property {string} request request string
  * @property {string} userRequest request intended by user (without loaders from config)
  * @property {string} rawRequest request without resolving
@@ -1365,6 +1368,9 @@ class NormalModule extends Module {
 		super.updateHash(hash, context);
 	}
 
+	/**
+	 * @param {ObjectSerializerContext} context context
+	 */
 	serialize(context) {
 		const { write } = context;
 		// deserialize
@@ -1399,6 +1405,9 @@ class NormalModule extends Module {
 		return obj;
 	}
 
+	/**
+	 * @param {ObjectDeserializerContext} context context
+	 */
 	deserialize(context) {
 		const { read } = context;
 		this._source = read();

@@ -22,7 +22,9 @@ const { makePathsAbsolute } = require("./util/identifier");
 /** @typedef {import("./Cache").Etag} Etag */
 /** @typedef {import("./CacheFacade").ItemCacheFacade} ItemCacheFacade */
 /** @typedef {import("./Chunk")} Chunk */
+/** @typedef {import("./Compilation").Asset} Asset */
 /** @typedef {import("./Compilation").AssetInfo} AssetInfo */
+/** @typedef {import("./Compilation").PathData} PathData */
 /** @typedef {import("./Compiler")} Compiler */
 /** @typedef {import("./Module")} Module */
 /** @typedef {import("./NormalModule").SourceMap} SourceMap */
@@ -139,7 +141,7 @@ class SourceMapDevToolPlugin {
 
 		/** @type {string | false} */
 		this.sourceMapFilename = options.filename;
-		/** @type {string | false} */
+		/** @type {string | false | (function(PathData, AssetInfo=): string)}} */
 		this.sourceMappingURLComment =
 			options.append === false
 				? false
@@ -226,7 +228,9 @@ class SourceMapDevToolPlugin {
 					asyncLib.each(
 						files,
 						(file, callback) => {
-							const asset = compilation.getAsset(file);
+							const asset =
+								/** @type {Readonly<Asset>} */
+								(compilation.getAsset(file));
 							if (asset.info.related && asset.info.related.sourceMap) {
 								fileIndex++;
 								return callback();
@@ -362,7 +366,9 @@ class SourceMapDevToolPlugin {
 							// find modules with conflicting source names
 							for (let idx = 0; idx < allModules.length; idx++) {
 								const module = allModules[idx];
-								let sourceName = moduleToSourceNameMapping.get(module);
+								let sourceName =
+									/** @type {string} */
+									(moduleToSourceNameMapping.get(module));
 								let hasName = conflictDetectionSet.has(sourceName);
 								if (!hasName) {
 									conflictDetectionSet.add(sourceName);
@@ -447,13 +453,14 @@ class SourceMapDevToolPlugin {
 										);
 									}
 
-									/** @type {string | false} */
+									/** @type {string | false | (function(PathData, AssetInfo=): string)} */
 									let currentSourceMappingURLComment = sourceMappingURLComment;
 									let cssExtensionDetected =
 										CSS_EXTENSION_DETECT_REGEXP.test(file);
 									resetRegexpState(CSS_EXTENSION_DETECT_REGEXP);
 									if (
 										currentSourceMappingURLComment !== false &&
+										typeof currentSourceMappingURLComment !== "function" &&
 										cssExtensionDetected
 									) {
 										currentSourceMappingURLComment =
@@ -532,6 +539,11 @@ class SourceMapDevToolPlugin {
 										if (currentSourceMappingURLComment === false) {
 											throw new Error(
 												"SourceMapDevToolPlugin: append can't be false when no filename is provided"
+											);
+										}
+										if (typeof currentSourceMappingURLComment === "function") {
+											throw new Error(
+												"SourceMapDevToolPlugin: append can't be a function when no filename is provided"
 											);
 										}
 										/**

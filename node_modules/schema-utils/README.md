@@ -13,7 +13,7 @@
 [![node][node]][node-url]
 [![tests][tests]][tests-url]
 [![coverage][cover]][cover-url]
-[![chat][chat]][chat-url]
+[![GitHub Discussions][discussion]][discussion-url]
 [![size][size]][size-url]
 
 # schema-utils
@@ -263,6 +263,36 @@ class Plugin {
 export default Plugin;
 ```
 
+### Allow to disable and enable validation (the `validate` function do nothing)
+
+This can be useful when you don't want to do validation for `production` builds.
+
+```js
+import { disableValidation, enableValidation, validate } from "schema-utils";
+
+// Disable validation
+disableValidation();
+// Do nothing
+validate(schema, options);
+
+// Enable validation
+enableValidation();
+// Will throw an error if schema is not valid
+validate(schema, options);
+
+// Allow to undestand do you need validation or not
+const need = needValidate();
+
+console.log(need);
+```
+
+Also you can enable/disable validation using the `process.env.SKIP_VALIDATION` env variable.
+
+Supported values (case insensitive):
+
+- `yes`/`y`/`true`/`1`/`on`
+- `no`/`n`/`false`/`0`/`off`
+
 ## Contributing
 
 Please take a moment to read our contributing guidelines if you haven't yet done so.
@@ -281,7 +311,7 @@ Please take a moment to read our contributing guidelines if you haven't yet done
 [tests-url]: https://github.com/webpack/schema-utils/actions
 [cover]: https://codecov.io/gh/webpack/schema-utils/branch/master/graph/badge.svg
 [cover-url]: https://codecov.io/gh/webpack/schema-utils
-[chat]: https://badges.gitter.im/webpack/webpack.svg
-[chat-url]: https://gitter.im/webpack/webpack
+[discussion]: https://img.shields.io/github/discussions/webpack/webpack
+[discussion-url]: https://github.com/webpack/webpack/discussions
 [size]: https://packagephobia.com/badge?p=schema-utils
 [size-url]: https://packagephobia.com/result?p=schema-utils
