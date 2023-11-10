@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "axios": "^0.x",
+    "axios": "^1.x",
     "bootstrap": "^5.x",
     "react": "^18.x",
     "react-animated-weather": "^4.x",
