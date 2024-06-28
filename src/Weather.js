@@ -44,7 +44,7 @@ export default function Weather(props) {
         <a
           href="https://www.shecodes.io/"
           target="_blank"
-          rel="noopener noreferrer
+          rel="noopener noreferrer"
         >
           <img src="/images/logo.png" className="logo" alt="SheCodes Logo" />
         </a>
