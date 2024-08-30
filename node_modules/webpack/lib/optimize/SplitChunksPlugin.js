@@ -28,11 +28,10 @@ const MinMaxSizeWarning = require("./MinMaxSizeWarning");
 /** @typedef {import("../../declarations/WebpackOptions").Output} OutputOptions */
 /** @typedef {import("../ChunkGraph")} ChunkGraph */
 /** @typedef {import("../ChunkGroup")} ChunkGroup */
-/** @typedef {import("../Compilation").AssetInfo} AssetInfo */
-/** @typedef {import("../Compilation").PathData} PathData */
 /** @typedef {import("../Compiler")} Compiler */
 /** @typedef {import("../Module")} Module */
 /** @typedef {import("../ModuleGraph")} ModuleGraph */
+/** @typedef {import("../TemplatedPathPlugin").TemplatePath} TemplatePath */
 /** @typedef {import("../util/deterministicGrouping").GroupedItems<Module>} DeterministicGroupingGroupedItemsForModule */
 /** @typedef {import("../util/deterministicGrouping").Options<Module>} DeterministicGroupingOptionsForModule */
 
@@ -67,7 +66,7 @@ const MinMaxSizeWarning = require("./MinMaxSizeWarning");
  * @property {number=} minChunks
  * @property {number=} maxAsyncRequests
  * @property {number=} maxInitialRequests
- * @property {(string | function(PathData, AssetInfo=): string)=} filename
+ * @property {TemplatePath=} filename
  * @property {string=} idHint
  * @property {string=} automaticNameDelimiter
  * @property {boolean=} reuseExistingChunk
@@ -89,7 +88,7 @@ const MinMaxSizeWarning = require("./MinMaxSizeWarning");
  * @property {number=} minChunks
  * @property {number=} maxAsyncRequests
  * @property {number=} maxInitialRequests
- * @property {(string | function(PathData, AssetInfo=): string)=} filename
+ * @property {TemplatePath=} filename
  * @property {string=} idHint
  * @property {string} automaticNameDelimiter
  * @property {boolean} reuseExistingChunk
@@ -144,7 +143,7 @@ const MinMaxSizeWarning = require("./MinMaxSizeWarning");
  * @property {number} maxAsyncRequests
  * @property {number} maxInitialRequests
  * @property {boolean} hidePathInfo
- * @property {string | function(PathData, AssetInfo=): string} filename
+ * @property {TemplatePath} filename
  * @property {string} automaticNameDelimiter
  * @property {GetCacheGroups} getCacheGroups
  * @property {GetName} getName
@@ -167,9 +166,8 @@ const MinMaxSizeWarning = require("./MinMaxSizeWarning");
 const defaultGetName = /** @type {GetName} */ (() => {});
 
 const deterministicGroupingForModules =
-	/** @type {function(DeterministicGroupingOptionsForModule): DeterministicGroupingGroupedItemsForModule[]} */ (
-		deterministicGrouping
-	);
+	/** @type {function(DeterministicGroupingOptionsForModule): DeterministicGroupingGroupedItemsForModule[]} */
+	(deterministicGrouping);
 
 /** @type {WeakMap<Module, string>} */
 const getKeyCache = new WeakMap();
@@ -180,11 +178,13 @@ const getKeyCache = new WeakMap();
  * @returns {string} hashed filename
  */
 const hashFilename = (name, outputOptions) => {
-	const digest = /** @type {string} */ (
-		createHash(outputOptions.hashFunction)
-			.update(name)
-			.digest(outputOptions.hashDigest)
-	);
+	const digest =
+		/** @type {string} */
+		(
+			createHash(outputOptions.hashFunction)
+				.update(name)
+				.digest(outputOptions.hashDigest)
+		);
 	return digest.slice(0, 8);
 };
 
@@ -200,10 +200,21 @@ const getRequests = chunk => {
 	return requests;
 };
 
+/**
+ * @template {object} T
+ * @template {object} R
+ * @param {T} obj obj an object
+ * @param {function(T[keyof T], keyof T): T[keyof T]} fn fn
+ * @returns {T} result
+ */
 const mapObject = (obj, fn) => {
 	const newObj = Object.create(null);
 	for (const key of Object.keys(obj)) {
-		newObj[key] = fn(obj[key], key);
+		newObj[key] = fn(
+			obj[/** @type {keyof T} */ (key)],
+			/** @type {keyof T} */
+			(key)
+		);
 	}
 	return newObj;
 };
@@ -283,13 +294,12 @@ const normalizeSizes = (value, defaultSizeTypes) => {
 		return o;
 	} else if (typeof value === "object" && value !== null) {
 		return { ...value };
-	} else {
-		return {};
 	}
+	return {};
 };
 
 /**
- * @param {...SplitChunksSizes} sizes the sizes
+ * @param {...(SplitChunksSizes | undefined)} sizes the sizes
  * @returns {SplitChunksSizes} the merged sizes
  */
 const mergeSizes = (...sizes) => {
@@ -324,11 +334,7 @@ const combineSizes = (a, b, combine) => {
 	/** @type {SplitChunksSizes} */
 	const result = {};
 	for (const key of aKeys) {
-		if (bKeys.has(key)) {
-			result[key] = combine(a[key], b[key]);
-		} else {
-			result[key] = a[key];
-		}
+		result[key] = bKeys.has(key) ? combine(a[key], b[key]) : a[key];
 	}
 	for (const key of bKeys) {
 		if (!aKeys.has(key)) {
@@ -425,9 +431,7 @@ const normalizeChunksFilter = chunks => {
 		return ALL_CHUNK_FILTER;
 	}
 	if (chunks instanceof RegExp) {
-		return chunk => {
-			return chunk.name ? chunks.test(chunk.name) : false;
-		};
+		return chunk => (chunk.name ? chunks.test(chunk.name) : false);
 	}
 	if (typeof chunks === "function") {
 		return chunks;
@@ -500,7 +504,7 @@ const normalizeCacheGroups = (cacheGroups, defaultSizeTypes) => {
 		 */
 		const fn = (module, context) => {
 			/** @type {CacheGroupSource[]} */
-			let results = [];
+			const results = [];
 			for (const fn of handlers) {
 				fn(module, context, results);
 			}
@@ -1210,7 +1214,7 @@ module.exports = class SplitChunksPlugin {
 					// Walk through all modules
 					for (const module of compilation.modules) {
 						// Get cache group
-						let cacheGroups = this.options.getCacheGroups(module, context);
+						const cacheGroups = this.options.getCacheGroups(module, context);
 						if (!Array.isArray(cacheGroups) || cacheGroups.length === 0) {
 							continue;
 						}
@@ -1437,7 +1441,7 @@ module.exports = class SplitChunksPlugin {
 											: item.cacheGroup.maxAsyncRequests
 								);
 								if (
-									isFinite(maxRequests) &&
+									Number.isFinite(maxRequests) &&
 									getRequests(chunk) >= maxRequests
 								) {
 									usedChunks.delete(chunk);
@@ -1482,7 +1486,7 @@ module.exports = class SplitChunksPlugin {
 							usedChunks.size === 1
 						) {
 							const [chunk] = usedChunks;
-							let chunkSizes = Object.create(null);
+							const chunkSizes = Object.create(null);
 							for (const module of chunkGraph.getChunkModulesIterable(chunk)) {
 								if (!item.modules.has(module)) {
 									for (const type of module.getSourceTypes()) {
@@ -1522,7 +1526,7 @@ module.exports = class SplitChunksPlugin {
 
 						// Add a note to the chunk
 						newChunk.chunkReason =
-							(newChunk.chunkReason ? newChunk.chunkReason + ", " : "") +
+							(newChunk.chunkReason ? `${newChunk.chunkReason}, ` : "") +
 							(isReusedWithAllModules
 								? "reused as split chunk"
 								: "split chunk");

@@ -44,8 +44,10 @@ const {
 
 /** @typedef {import("estree").CallExpression} CallExpression */
 /** @typedef {import("estree").Expression} Expression */
+/** @typedef {import("../declarations/WebpackOptions").OutputNormalized} OutputNormalized */
 /** @typedef {import("./Chunk")} Chunk */
 /** @typedef {import("./Chunk").ChunkId} ChunkId */
+/** @typedef {import("./ChunkGraph").ModuleId} ModuleId */
 /** @typedef {import("./Compilation").AssetInfo} AssetInfo */
 /** @typedef {import("./Compiler")} Compiler */
 /** @typedef {import("./Dependency").DependencyLocation} DependencyLocation */
@@ -62,7 +64,8 @@ const {
  * @property {SyncBailHook<[TODO, string[]], void>} hotAcceptWithoutCallback
  */
 
-/** @typedef {Map<string, { updatedChunkIds: Set<ChunkId>, removedChunkIds: Set<ChunkId>, removedModules: Set<Module>, filename: string, assetInfo: AssetInfo }>} HotUpdateMainContentByRuntime */
+/** @typedef {{ updatedChunkIds: Set<ChunkId>, removedChunkIds: Set<ChunkId>, removedModules: Set<Module>, filename: string, assetInfo: AssetInfo }} HotUpdateMainContentByRuntimeItem */
+/** @typedef {Map<string, HotUpdateMainContentByRuntimeItem>} HotUpdateMainContentByRuntime */
 
 /** @type {WeakMap<JavascriptParser, HMRJavascriptParserHooks>} */
 const parserHooksMap = new WeakMap();
@@ -131,7 +134,9 @@ class HotModuleReplacementPlugin {
 				(module.buildInfo).moduleConcatenationBailout =
 					"Hot Module Replacement";
 				if (expr.arguments.length >= 1) {
-					const arg = parser.evaluateExpression(expr.arguments[0]);
+					const arg = parser.evaluateExpression(
+						/** @type {Expression} */ (expr.arguments[0])
+					);
 					/** @type {BasicEvaluatedExpression[]} */
 					let params = [];
 					if (arg.isString()) {
@@ -142,9 +147,9 @@ class HotModuleReplacementPlugin {
 							(arg.items).filter(param => param.isString());
 					}
 					/** @type {string[]} */
-					let requests = [];
+					const requests = [];
 					if (params.length > 0) {
-						params.forEach((param, idx) => {
+						for (const [idx, param] of params.entries()) {
 							const request = /** @type {string} */ (param.string);
 							const dep = new ParamDependency(
 								request,
@@ -157,17 +162,16 @@ class HotModuleReplacementPlugin {
 							dep.loc.index = idx;
 							module.addDependency(dep);
 							requests.push(request);
-						});
+						}
 						if (expr.arguments.length > 1) {
 							hotAcceptCallback.call(expr.arguments[1], requests);
 							for (let i = 1; i < expr.arguments.length; i++) {
 								parser.walkExpression(expr.arguments[i]);
 							}
 							return true;
-						} else {
-							hotAcceptWithoutCallback.call(expr, requests);
-							return true;
 						}
+						hotAcceptWithoutCallback.call(expr, requests);
+						return true;
 					}
 				}
 				parser.walkExpressions(expr.arguments);
@@ -202,7 +206,7 @@ class HotModuleReplacementPlugin {
 						/** @type {BasicEvaluatedExpression[]} */
 						(arg.items).filter(param => param.isString());
 				}
-				params.forEach((param, idx) => {
+				for (const [idx, param] of params.entries()) {
 					const dep = new ParamDependency(
 						/** @type {string} */ (param.string),
 						/** @type {Range} */ (param.range)
@@ -211,7 +215,7 @@ class HotModuleReplacementPlugin {
 					dep.loc = Object.create(/** @type {DependencyLocation} */ (expr.loc));
 					dep.loc.index = idx;
 					module.addDependency(dep);
-				});
+				}
 			}
 			return true;
 		};
@@ -244,14 +248,13 @@ class HotModuleReplacementPlugin {
 					name: PLUGIN_NAME,
 					before: "NodeStuffPlugin"
 				},
-				expr => {
-					return evaluateToIdentifier(
+				expr =>
+					evaluateToIdentifier(
 						"module.hot",
 						"module",
 						() => ["hot"],
 						true
-					)(expr);
-				}
+					)(expr)
 			);
 			parser.hooks.call
 				.for("module.hot.accept")
@@ -277,14 +280,14 @@ class HotModuleReplacementPlugin {
 		const applyImportMetaHot = parser => {
 			parser.hooks.evaluateIdentifier
 				.for("import.meta.webpackHot")
-				.tap(PLUGIN_NAME, expr => {
-					return evaluateToIdentifier(
+				.tap(PLUGIN_NAME, expr =>
+					evaluateToIdentifier(
 						"import.meta.webpackHot",
 						"import.meta",
 						() => ["webpackHot"],
 						true
-					)(expr);
-				});
+					)(expr)
+				);
 			parser.hooks.call
 				.for("import.meta.webpackHot.accept")
 				.tap(
@@ -309,7 +312,7 @@ class HotModuleReplacementPlugin {
 				// It should not affect child compilations
 				if (compilation.compiler !== compiler) return;
 
-				//#region module.hot.* API
+				// #region module.hot.* API
 				compilation.dependencyFactories.set(
 					ModuleHotAcceptDependency,
 					normalModuleFactory
@@ -326,9 +329,9 @@ class HotModuleReplacementPlugin {
 					ModuleHotDeclineDependency,
 					new ModuleHotDeclineDependency.Template()
 				);
-				//#endregion
+				// #endregion
 
-				//#region import.meta.webpackHot.* API
+				// #region import.meta.webpackHot.* API
 				compilation.dependencyFactories.set(
 					ImportMetaHotAcceptDependency,
 					normalModuleFactory
@@ -345,7 +348,7 @@ class HotModuleReplacementPlugin {
 					ImportMetaHotDeclineDependency,
 					new ImportMetaHotDeclineDependency.Template()
 				);
-				//#endregion
+				// #endregion
 
 				let hotIndex = 0;
 				/** @type {Record<string, string>} */
@@ -401,10 +404,9 @@ class HotModuleReplacementPlugin {
 									module,
 									chunk.runtime
 								);
-							} else {
-								nonCodeGeneratedModules.add(module, chunk.runtime);
-								return chunkGraph.getModuleHash(module, chunk.runtime);
 							}
+							nonCodeGeneratedModules.add(module, chunk.runtime);
+							return chunkGraph.getModuleHash(module, chunk.runtime);
 						};
 						const fullHashModulesInThisChunk =
 							chunkGraph.getChunkFullHashModulesSet(chunk);
@@ -446,27 +448,25 @@ class HotModuleReplacementPlugin {
 										chunkModuleHashes[key] = hash;
 									}
 								}
-							} else {
-								if (fullHashModulesInThisChunk !== undefined) {
-									for (const module of modules) {
-										const key = `${chunk.id}|${module.identifier()}`;
-										const hash = getModuleHash(module);
-										if (
-											fullHashModulesInThisChunk.has(
-												/** @type {RuntimeModule} */ (module)
-											)
-										) {
-											fullHashChunkModuleHashes[key] = hash;
-										} else {
-											chunkModuleHashes[key] = hash;
-										}
-									}
-								} else {
-									for (const module of modules) {
-										const key = `${chunk.id}|${module.identifier()}`;
-										const hash = getModuleHash(module);
+							} else if (fullHashModulesInThisChunk !== undefined) {
+								for (const module of modules) {
+									const key = `${chunk.id}|${module.identifier()}`;
+									const hash = getModuleHash(module);
+									if (
+										fullHashModulesInThisChunk.has(
+											/** @type {RuntimeModule} */ (module)
+										)
+									) {
+										fullHashChunkModuleHashes[key] = hash;
+									} else {
 										chunkModuleHashes[key] = hash;
 									}
+								}
+							} else {
+								for (const module of modules) {
+									const key = `${chunk.id}|${module.identifier()}`;
+									const hash = getModuleHash(module);
+									chunkModuleHashes[key] = hash;
 								}
 							}
 						}
@@ -517,7 +517,8 @@ class HotModuleReplacementPlugin {
 						forEachRuntime(allOldRuntime, runtime => {
 							const { path: filename, info: assetInfo } =
 								compilation.getPathWithInfo(
-									compilation.outputOptions.hotUpdateMainFilename,
+									/** @type {NonNullable<OutputNormalized["hotUpdateMainFilename"]>} */
+									(compilation.outputOptions.hotUpdateMainFilename),
 									{
 										hash: records.hash,
 										runtime
@@ -540,7 +541,9 @@ class HotModuleReplacementPlugin {
 						/** @type {Map<number|string, Module>} */
 						const allModules = new Map();
 						for (const module of compilation.modules) {
-							const id = chunkGraph.getModuleId(module);
+							const id =
+								/** @type {ModuleId} */
+								(chunkGraph.getModuleId(module));
 							allModules.set(id, module);
 						}
 
@@ -604,16 +607,20 @@ class HotModuleReplacementPlugin {
 								removedFromRuntime = subtractRuntime(oldRuntime, newRuntime);
 							} else {
 								// chunk has completely removed
-								chunkId = `${+key}` === key ? +key : key;
+								chunkId = `${Number(key)}` === key ? Number(key) : key;
 								removedFromRuntime = oldRuntime;
 								newRuntime = oldRuntime;
 							}
 							if (removedFromRuntime) {
 								// chunk was removed from some runtimes
 								forEachRuntime(removedFromRuntime, runtime => {
-									const item = hotUpdateMainContentByRuntime.get(
-										/** @type {string} */ (runtime)
-									);
+									const item =
+										/** @type {HotUpdateMainContentByRuntimeItem} */
+										(
+											hotUpdateMainContentByRuntime.get(
+												/** @type {string} */ (runtime)
+											)
+										);
 									item.removedChunkIds.add(/** @type {ChunkId} */ (chunkId));
 								});
 								// dispose modules from the chunk in these runtimes
@@ -654,16 +661,18 @@ class HotModuleReplacementPlugin {
 											for (const moduleRuntime of runtimes) {
 												if (typeof moduleRuntime === "string") {
 													if (moduleRuntime === runtime) return;
-												} else if (moduleRuntime !== undefined) {
-													if (
-														moduleRuntime.has(/** @type {string} */ (runtime))
-													)
-														return;
-												}
+												} else if (
+													moduleRuntime !== undefined &&
+													moduleRuntime.has(/** @type {string} */ (runtime))
+												)
+													return;
 											}
-											const item = hotUpdateMainContentByRuntime.get(
-												/** @type {string} */ (runtime)
-											);
+											const item =
+												/** @type {HotUpdateMainContentByRuntimeItem} */ (
+													hotUpdateMainContentByRuntime.get(
+														/** @type {string} */ (runtime)
+													)
+												);
 											item.removedModules.add(module);
 										});
 									}
@@ -738,9 +747,12 @@ class HotModuleReplacementPlugin {
 									}
 								}
 								forEachRuntime(newRuntime, runtime => {
-									const item = hotUpdateMainContentByRuntime.get(
-										/** @type {string} */ (runtime)
-									);
+									const item =
+										/** @type {HotUpdateMainContentByRuntimeItem} */ (
+											hotUpdateMainContentByRuntime.get(
+												/** @type {string} */ (runtime)
+											)
+										);
 									item.updatedChunkIds.add(/** @type {ChunkId} */ (chunkId));
 								});
 							}
@@ -795,8 +807,10 @@ To fix this, make sure to include [runtime] in the output.hotUpdateMainFilename 
 									removedModules.size === 0
 										? completelyRemovedModulesArray
 										: completelyRemovedModulesArray.concat(
-												Array.from(removedModules, m =>
-													chunkGraph.getModuleId(m)
+												Array.from(
+													removedModules,
+													m =>
+														/** @type {ModuleId} */ (chunkGraph.getModuleId(m))
 												)
 											)
 							};

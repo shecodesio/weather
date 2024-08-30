@@ -67,7 +67,7 @@ const memoize = require("./util/memoize");
  * @typedef {object} ExportsSpec
  * @property {(string | ExportSpec)[] | true | null} exports exported names, true for unknown exports or null for no exports
  * @property {Set<string>=} excludeExports when exports = true, list of unaffected exports
- * @property {Set<string>=} hideExports list of maybe prior exposed, but now hidden exports
+ * @property {(Set<string> | null)=} hideExports list of maybe prior exposed, but now hidden exports
  * @property {ModuleGraphConnection=} from when reexported: from which module
  * @property {number=} priority when reexported: with which priority
  * @property {boolean=} canMangle can the export be renamed (defaults to true)
@@ -85,9 +85,9 @@ const memoize = require("./util/memoize");
 
 const TRANSITIVE = Symbol("transitive");
 
-const getIgnoredModule = memoize(() => {
-	return new RawModule("/* (ignored) */", `ignored`, `(ignored)`);
-});
+const getIgnoredModule = memoize(
+	() => new RawModule("/* (ignored) */", "ignored", "(ignored)")
+);
 
 class Dependency {
 	constructor() {
@@ -163,16 +163,8 @@ class Dependency {
 			this._locEL = 0;
 			this._locEC = 0;
 		}
-		if ("index" in loc) {
-			this._locI = loc.index;
-		} else {
-			this._locI = undefined;
-		}
-		if ("name" in loc) {
-			this._locN = loc.name;
-		} else {
-			this._locN = undefined;
-		}
+		this._locI = "index" in loc ? loc.index : undefined;
+		this._locN = "name" in loc ? loc.name : undefined;
 		this._loc = loc;
 	}
 
@@ -336,6 +328,8 @@ Dependency.NO_EXPORTS_REFERENCED = [];
 /** @type {string[][]} */
 Dependency.EXPORTS_OBJECT_REFERENCED = [[]];
 
+// eslint-disable-next-line no-warning-comments
+// @ts-ignore https://github.com/microsoft/TypeScript/issues/42919
 Object.defineProperty(Dependency.prototype, "module", {
 	/**
 	 * @deprecated
@@ -358,6 +352,8 @@ Object.defineProperty(Dependency.prototype, "module", {
 	}
 });
 
+// eslint-disable-next-line no-warning-comments
+// @ts-ignore https://github.com/microsoft/TypeScript/issues/42919
 Object.defineProperty(Dependency.prototype, "disconnect", {
 	get() {
 		throw new Error(

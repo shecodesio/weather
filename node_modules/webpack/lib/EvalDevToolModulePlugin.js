@@ -39,7 +39,7 @@ class EvalDevToolModulePlugin {
 	/**
 	 * @param {EvalDevToolModulePluginOptions=} options options
 	 */
-	constructor(options) {
+	constructor(options = {}) {
 		this.namespace = options.namespace || "";
 		this.sourceUrlComment = options.sourceUrlComment || "\n//# sourceURL=[url]";
 		this.moduleFilenameTemplate =
@@ -77,17 +77,15 @@ class EvalDevToolModulePlugin {
 							hashFunction: compilation.outputOptions.hashFunction
 						}
 					);
-					const footer =
-						"\n" +
-						this.sourceUrlComment.replace(
-							/\[url\]/g,
-							encodeURI(str)
-								.replace(/%2F/g, "/")
-								.replace(/%20/g, "_")
-								.replace(/%5E/g, "^")
-								.replace(/%5C/g, "\\")
-								.replace(/^\//, "")
-						);
+					const footer = `\n${this.sourceUrlComment.replace(
+						/\[url\]/g,
+						encodeURI(str)
+							.replace(/%2F/g, "/")
+							.replace(/%20/g, "_")
+							.replace(/%5E/g, "^")
+							.replace(/%5C/g, "\\")
+							.replace(/^\//, "")
+					)}`;
 					const result = new RawSource(
 						`eval(${
 							compilation.outputOptions.trustedTypes

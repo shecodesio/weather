@@ -194,6 +194,7 @@ function pitch(request) {
       return;
     }
     const result = function makeResult() {
+      const defaultExport = typeof options.defaultExport !== "undefined" ? options.defaultExport : false;
       if (locals) {
         if (namedExport) {
           const identifiers = Array.from(function* generateIdentifiers() {
@@ -205,12 +206,11 @@ function pitch(request) {
           }());
           const localsString = identifiers.map(([id, key]) => `\nvar ${id} = ${stringifyLocal( /** @type {Locals} */locals[key])};`).join("");
           const exportsString = `export { ${identifiers.map(([id, key]) => `${id} as ${JSON.stringify(key)}`).join(", ")} }`;
-          const defaultExport = typeof options.defaultExport !== "undefined" ? options.defaultExport : false;
           return defaultExport ? `${localsString}\n${exportsString}\nexport default { ${identifiers.map(([id, key]) => `${JSON.stringify(key)}: ${id}`).join(", ")} }\n` : `${localsString}\n${exportsString}\n`;
         }
         return `\n${esModule ? "export default" : "module.exports = "} ${JSON.stringify(locals)};`;
       } else if (esModule) {
-        return "\nexport {};";
+        return defaultExport ? "\nexport {};export default {};" : "\nexport {};";
       }
       return "";
     }();

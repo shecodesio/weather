@@ -15,15 +15,16 @@ const NONE = Symbol("not sorted");
 class SortableSet extends Set {
 	/**
 	 * Create a new sortable set
+	 * @template T
 	 * @param {Iterable<T>=} initialIterable The initial iterable value
 	 * @typedef {function(T, T): number} SortFunction
-	 * @param {SortFunction=} defaultSort Default sorting function
+	 * @param {SortFunction<T>=} defaultSort Default sorting function
 	 */
 	constructor(initialIterable, defaultSort) {
 		super(initialIterable);
 		/**
 		 * @private
-		 * @type {undefined | function(T, T): number}}
+		 * @type {undefined | SortFunction<T>}
 		 */
 		this._sortFn = defaultSort;
 		/**
@@ -76,7 +77,7 @@ class SortableSet extends Set {
 
 	/**
 	 * Sort with a comparer function
-	 * @param {SortFunction} sortFn Sorting comparer function
+	 * @param {SortFunction<T> | undefined} sortFn Sorting comparer function
 	 * @returns {void}
 	 */
 	sortWith(sortFn) {

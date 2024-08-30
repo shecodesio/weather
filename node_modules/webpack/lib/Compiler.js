@@ -14,7 +14,7 @@ const {
 	AsyncSeriesHook
 } = require("tapable");
 const { SizeOnlySource } = require("webpack-sources");
-const webpack = require("./");
+const webpack = require(".");
 const Cache = require("./Cache");
 const CacheFacade = require("./CacheFacade");
 const ChunkGraph = require("./ChunkGraph");
@@ -47,12 +47,17 @@ const { isSourceEqual } = require("./util/source");
 /** @typedef {import("./Module").BuildInfo} BuildInfo */
 /** @typedef {import("./config/target").PlatformTargetProperties} PlatformTargetProperties */
 /** @typedef {import("./logging/createConsoleLogger").LoggingFunction} LoggingFunction */
-/** @typedef {import("./util/WeakTupleMap")} WeakTupleMap */
 /** @typedef {import("./util/fs").IStats} IStats */
 /** @typedef {import("./util/fs").InputFileSystem} InputFileSystem */
 /** @typedef {import("./util/fs").IntermediateFileSystem} IntermediateFileSystem */
 /** @typedef {import("./util/fs").OutputFileSystem} OutputFileSystem */
 /** @typedef {import("./util/fs").WatchFileSystem} WatchFileSystem */
+
+/**
+ * @template {any[]} T
+ * @template V
+ * @typedef {import("./util/WeakTupleMap")<T, V>} WeakTupleMap
+ */
 
 /**
  * @typedef {object} CompilationParams
@@ -127,9 +132,8 @@ const includesHash = (filename, hashes) => {
 	if (!hashes) return false;
 	if (Array.isArray(hashes)) {
 		return hashes.some(hash => filename.includes(hash));
-	} else {
-		return filename.includes(hashes);
 	}
+	return filename.includes(hashes);
 };
 
 class Compiler {
@@ -197,7 +201,7 @@ class Compiler {
 			/** @type {AsyncSeriesHook<[]>} */
 			shutdown: new AsyncSeriesHook([]),
 
-			/** @type {SyncBailHook<[string, string, any[]], true>} */
+			/** @type {SyncBailHook<[string, string, any[] | undefined], true>} */
 			infrastructureLog: new SyncBailHook(["origin", "type", "args"]),
 
 			// TODO the following hooks are weirdly located here
@@ -284,7 +288,7 @@ class Compiler {
 
 		this.cache = new Cache();
 
-		/** @type {Map<Module, { buildInfo: BuildInfo, references: References | undefined, memCache: WeakTupleMap }> | undefined} */
+		/** @type {Map<Module, { buildInfo: BuildInfo, references: References | undefined, memCache: WeakTupleMap<any, any> }> | undefined} */
 		this.moduleMemCaches = undefined;
 
 		this.compilerPath = "";
@@ -354,10 +358,11 @@ class Compiler {
 						);
 					}
 				}
-				if (this.hooks.infrastructureLog.call(name, type, args) === undefined) {
-					if (this.infrastructureLogger !== undefined) {
-						this.infrastructureLogger(name, type, args);
-					}
+				if (
+					this.hooks.infrastructureLog.call(name, type, args) === undefined &&
+					this.infrastructureLogger !== undefined
+				) {
+					this.infrastructureLogger(name, type, args);
 				}
 			},
 			childName => {
@@ -382,36 +387,33 @@ class Compiler {
 							}
 							return `${name}/${childName}`;
 						});
-					} else {
-						return this.getInfrastructureLogger(() => {
-							if (typeof name === "function") {
-								name = name();
-								if (!name) {
-									throw new TypeError(
-										"Compiler.getInfrastructureLogger(name) called with a function not returning a name"
-									);
-								}
-							}
-							return `${name}/${childName}`;
-						});
 					}
-				} else {
-					if (typeof childName === "function") {
-						return this.getInfrastructureLogger(() => {
-							if (typeof childName === "function") {
-								childName = childName();
-								if (!childName) {
-									throw new TypeError(
-										"Logger.getChildLogger(name) called with a function not returning a name"
-									);
-								}
+					return this.getInfrastructureLogger(() => {
+						if (typeof name === "function") {
+							name = name();
+							if (!name) {
+								throw new TypeError(
+									"Compiler.getInfrastructureLogger(name) called with a function not returning a name"
+								);
 							}
-							return `${name}/${childName}`;
-						});
-					} else {
-						return this.getInfrastructureLogger(`${name}/${childName}`);
-					}
+						}
+						return `${name}/${childName}`;
+					});
 				}
+				if (typeof childName === "function") {
+					return this.getInfrastructureLogger(() => {
+						if (typeof childName === "function") {
+							childName = childName();
+							if (!childName) {
+								throw new TypeError(
+									"Logger.getChildLogger(name) called with a function not returning a name"
+								);
+							}
+						}
+						return `${name}/${childName}`;
+					});
+				}
+				return this.getInfrastructureLogger(`${name}/${childName}`);
 			}
 		);
 	}
@@ -623,11 +625,11 @@ class Compiler {
 		const finalCallback = (err, entries, compilation) => {
 			try {
 				callback(err, entries, compilation);
-			} catch (e) {
+			} catch (runAsChildErr) {
 				const err = new WebpackError(
-					`compiler.runAsChild callback error: ${e}`
+					`compiler.runAsChild callback error: ${runAsChildErr}`
 				);
-				err.details = /** @type {Error} */ (e).stack;
+				err.details = /** @type {Error} */ (runAsChildErr).stack;
 				/** @type {Compilation} */
 				(this.parentCompilation).errors.push(err);
 			}
@@ -765,18 +767,17 @@ ${other}`);
 									callback(err);
 								}
 								return true;
-							} else {
-								caseInsensitiveMap.set(
-									caseInsensitiveTargetPath,
-									(similarEntry = /** @type {SimilarEntry} */ ({
-										path: targetPath,
-										source,
-										size: undefined,
-										waiting: undefined
-									}))
-								);
-								return false;
 							}
+							caseInsensitiveMap.set(
+								caseInsensitiveTargetPath,
+								(similarEntry = /** @type {SimilarEntry} */ ({
+									path: targetPath,
+									source,
+									size: undefined,
+									waiting: undefined
+								}))
+							);
+							return false;
 						};
 
 						/**
@@ -786,14 +787,12 @@ ${other}`);
 						const getContent = () => {
 							if (typeof source.buffer === "function") {
 								return source.buffer();
-							} else {
-								const bufferOrString = source.source();
-								if (Buffer.isBuffer(bufferOrString)) {
-									return bufferOrString;
-								} else {
-									return Buffer.from(bufferOrString, "utf8");
-								}
 							}
+							const bufferOrString = source.source();
+							if (Buffer.isBuffer(bufferOrString)) {
+								return bufferOrString;
+							}
+							return Buffer.from(bufferOrString, "utf8");
 						};
 
 						const alreadyWritten = () => {
@@ -917,9 +916,8 @@ ${other}`);
 										!content.equals(/** @type {Buffer} */ (existingContent))
 									) {
 										return doWrite(content);
-									} else {
-										return alreadyWritten();
 									}
+									return alreadyWritten();
 								});
 							}
 
@@ -956,10 +954,9 @@ ${other}`);
 									});
 
 									return callback();
-								} else {
-									// Settings immutable will make it accept file content without comparing when file exist
-									immutable = true;
 								}
+								// Settings immutable will make it accept file content without comparing when file exist
+								immutable = true;
 							} else if (!immutable) {
 								if (checkSimilarFile()) return;
 								// We wrote to this file before which has very likely a different content
@@ -986,7 +983,7 @@ ${other}`);
 						}
 					};
 
-					if (targetFile.match(/\/|\\/)) {
+					if (/\/|\\/.test(targetFile)) {
 						const fs = /** @type {OutputFileSystem} */ (this.outputFileSystem);
 						const dir = dirname(fs, join(fs, outputPath, targetFile));
 						mkdirp(fs, dir, writeOut);
@@ -1041,12 +1038,10 @@ ${other}`);
 			} else {
 				this.hooks.emitRecords.callAsync(callback);
 			}
+		} else if (this.recordsOutputPath) {
+			this._emitRecords(callback);
 		} else {
-			if (this.recordsOutputPath) {
-				this._emitRecords(callback);
-			} else {
-				callback();
-			}
+			callback();
 		}
 	}
 
@@ -1115,13 +1110,11 @@ ${other}`);
 				this.records = {};
 				this.hooks.readRecords.callAsync(callback);
 			}
+		} else if (this.recordsInputPath) {
+			this._readRecords(callback);
 		} else {
-			if (this.recordsInputPath) {
-				this._readRecords(callback);
-			} else {
-				this.records = {};
-				callback();
-			}
+			this.records = {};
+			callback();
 		}
 	}
 
@@ -1150,10 +1143,10 @@ ${other}`);
 						this.records = parseJson(
 							/** @type {Buffer} */ (content).toString("utf-8")
 						);
-					} catch (e) {
+					} catch (parseErr) {
 						return callback(
 							new Error(
-								`Cannot parse records: ${/** @type {Error} */ (e).message}`
+								`Cannot parse records: ${/** @type {Error} */ (parseErr).message}`
 							)
 						);
 					}
@@ -1233,11 +1226,17 @@ ${other}`);
 					"invalid",
 					"done",
 					"thisCompilation"
-				].includes(name)
+				].includes(name) &&
+				childCompiler.hooks[/** @type {keyof Compiler["hooks"]} */ (name)]
 			) {
-				if (childCompiler.hooks[name]) {
-					childCompiler.hooks[name].taps = this.hooks[name].taps.slice();
-				}
+				childCompiler.hooks[
+					/** @type {keyof Compiler["hooks"]} */
+					(name)
+				].taps =
+					this.hooks[
+						/** @type {keyof Compiler["hooks"]} */
+						(name)
+					].taps.slice();
 			}
 		}
 
@@ -1251,7 +1250,7 @@ ${other}`);
 	}
 
 	isChild() {
-		return !!this.parentCompilation;
+		return Boolean(this.parentCompilation);
 	}
 
 	/**

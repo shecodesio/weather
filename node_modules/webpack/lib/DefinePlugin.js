@@ -22,6 +22,7 @@ const {
 const createHash = require("./util/createHash");
 
 /** @typedef {import("estree").Expression} Expression */
+/** @typedef {import("./Compilation").ValueCacheVersion} ValueCacheVersion */
 /** @typedef {import("./Compiler")} Compiler */
 /** @typedef {import("./Module").BuildInfo} BuildInfo */
 /** @typedef {import("./NormalModule")} NormalModule */
@@ -30,6 +31,7 @@ const createHash = require("./util/createHash");
 /** @typedef {import("./javascript/JavascriptParser").DestructuringAssignmentProperty} DestructuringAssignmentProperty */
 /** @typedef {import("./javascript/JavascriptParser").Range} Range */
 /** @typedef {import("./logging/Logger").Logger} Logger */
+/** @typedef {import("./util/createHash").Algorithm} Algorithm */
 
 /** @typedef {null|undefined|RegExp|Function|string|number|boolean|bigint|undefined} CodeValuePrimitive */
 /** @typedef {RecursiveArrayOrRecord<CodeValuePrimitive|RuntimeValue>} CodeValue */
@@ -43,9 +45,11 @@ const createHash = require("./util/createHash");
  * @property {string|function(): string=} version
  */
 
+/** @typedef {function({ module: NormalModule, key: string, readonly version: ValueCacheVersion }): CodeValuePrimitive} GeneratorFn */
+
 class RuntimeValue {
 	/**
-	 * @param {function({ module: NormalModule, key: string, readonly version: string | undefined }): CodeValuePrimitive} fn generator function
+	 * @param {GeneratorFn} fn generator function
 	 * @param {true | string[] | RuntimeValueOptions=} options options
 	 */
 	constructor(fn, options) {
@@ -64,7 +68,7 @@ class RuntimeValue {
 
 	/**
 	 * @param {JavascriptParser} parser the parser
-	 * @param {Map<string, string | Set<string>>} valueCacheVersions valueCacheVersions
+	 * @param {Map<string, ValueCacheVersion>} valueCacheVersions valueCacheVersions
 	 * @param {string} key the defined key
 	 * @returns {CodeValuePrimitive} code
 	 */
@@ -75,22 +79,26 @@ class RuntimeValue {
 		} else {
 			if (this.options.fileDependencies) {
 				for (const dep of this.options.fileDependencies) {
-					buildInfo.fileDependencies.add(dep);
+					/** @type {NonNullable<BuildInfo["fileDependencies"]>} */
+					(buildInfo.fileDependencies).add(dep);
 				}
 			}
 			if (this.options.contextDependencies) {
 				for (const dep of this.options.contextDependencies) {
-					buildInfo.contextDependencies.add(dep);
+					/** @type {NonNullable<BuildInfo["contextDependencies"]>} */
+					(buildInfo.contextDependencies).add(dep);
 				}
 			}
 			if (this.options.missingDependencies) {
 				for (const dep of this.options.missingDependencies) {
-					buildInfo.missingDependencies.add(dep);
+					/** @type {NonNullable<BuildInfo["missingDependencies"]>} */
+					(buildInfo.missingDependencies).add(dep);
 				}
 			}
 			if (this.options.buildDependencies) {
 				for (const dep of this.options.buildDependencies) {
-					buildInfo.buildDependencies.add(dep);
+					/** @type {NonNullable<BuildInfo["buildDependencies"]>} */
+					(buildInfo.buildDependencies).add(dep);
 				}
 			}
 		}
@@ -99,9 +107,7 @@ class RuntimeValue {
 			module: parser.state.module,
 			key,
 			get version() {
-				return /** @type {string} */ (
-					valueCacheVersions.get(VALUE_DEP_PREFIX + key)
-				);
+				return valueCacheVersions.get(VALUE_DEP_PREFIX + key);
 			}
 		});
 	}
@@ -120,19 +126,22 @@ class RuntimeValue {
  * @returns {Set<string> | undefined} used keys
  */
 function getObjKeys(properties) {
-	if (!properties) return undefined;
+	if (!properties) return;
 	return new Set([...properties].map(p => p.id));
 }
+
+/** @typedef {Set<string> | null} ObjKeys */
+/** @typedef {boolean | undefined | null} AsiSafe */
 
 /**
  * @param {any[]|{[k: string]: any}} obj obj
  * @param {JavascriptParser} parser Parser
- * @param {Map<string, string | Set<string>>} valueCacheVersions valueCacheVersions
+ * @param {Map<string, ValueCacheVersion>} valueCacheVersions valueCacheVersions
  * @param {string} key the defined key
  * @param {RuntimeTemplate} runtimeTemplate the runtime template
  * @param {Logger} logger the logger object
- * @param {boolean|undefined|null=} asiSafe asi safe (undefined: unknown, null: unneeded)
- * @param {Set<string>|undefined=} objKeys used keys
+ * @param {AsiSafe=} asiSafe asi safe (undefined: unknown, null: unneeded)
+ * @param {ObjKeys=} objKeys used keys
  * @returns {string} code converted to string that evaluates
  */
 const stringifyObj = (
@@ -146,7 +155,7 @@ const stringifyObj = (
 	objKeys
 ) => {
 	let code;
-	let arr = Array.isArray(obj);
+	const arr = Array.isArray(obj);
 	if (arr) {
 		code = `[${
 			/** @type {any[]} */ (obj)
@@ -166,25 +175,20 @@ const stringifyObj = (
 	} else {
 		let keys = Object.keys(obj);
 		if (objKeys) {
-			if (objKeys.size === 0) keys = [];
-			else keys = keys.filter(k => objKeys.has(k));
+			keys = objKeys.size === 0 ? [] : keys.filter(k => objKeys.has(k));
 		}
 		code = `{${keys
 			.map(key => {
 				const code = /** @type {{[k: string]: any}} */ (obj)[key];
-				return (
-					JSON.stringify(key) +
-					":" +
-					toCode(
-						code,
-						parser,
-						valueCacheVersions,
-						key,
-						runtimeTemplate,
-						logger,
-						null
-					)
-				);
+				return `${JSON.stringify(key)}:${toCode(
+					code,
+					parser,
+					valueCacheVersions,
+					key,
+					runtimeTemplate,
+					logger,
+					null
+				)}`;
 			})
 			.join(",")}}`;
 	}
@@ -205,12 +209,12 @@ const stringifyObj = (
  * Convert code to a string that evaluates
  * @param {CodeValue} code Code to evaluate
  * @param {JavascriptParser} parser Parser
- * @param {Map<string, string | Set<string>>} valueCacheVersions valueCacheVersions
+ * @param {Map<string, ValueCacheVersion>} valueCacheVersions valueCacheVersions
  * @param {string} key the defined key
  * @param {RuntimeTemplate} runtimeTemplate the runtime template
  * @param {Logger} logger the logger object
- * @param {boolean|undefined|null=} asiSafe asi safe (undefined: unknown, null: unneeded)
- * @param {Set<string>|undefined=} objKeys used keys
+ * @param {boolean | undefined | null=} asiSafe asi safe (undefined: unknown, null: unneeded)
+ * @param {ObjKeys=} objKeys used keys
  * @returns {string} code converted to string that evaluates
  */
 const toCode = (
@@ -248,7 +252,7 @@ const toCode = (
 			return code.toString();
 		}
 		if (typeof code === "function" && code.toString) {
-			return "(" + code.toString() + ")";
+			return `(${code.toString()})`;
 		}
 		if (typeof code === "object") {
 			return stringifyObj(
@@ -267,7 +271,7 @@ const toCode = (
 				? `${code}n`
 				: `BigInt("${code}")`;
 		}
-		return code + "";
+		return `${code}`;
 	};
 
 	const strCode = transformToCode();
@@ -298,20 +302,20 @@ const toCacheVersion = code => {
 		return code.toString();
 	}
 	if (typeof code === "function" && code.toString) {
-		return "(" + code.toString() + ")";
+		return `(${code.toString()})`;
 	}
 	if (typeof code === "object") {
 		const items = Object.keys(code).map(key => ({
 			key,
 			value: toCacheVersion(/** @type {Record<string, any>} */ (code)[key])
 		}));
-		if (items.some(({ value }) => value === undefined)) return undefined;
+		if (items.some(({ value }) => value === undefined)) return;
 		return `{${items.map(({ key, value }) => `${key}: ${value}`).join(", ")}}`;
 	}
 	if (typeof code === "bigint") {
 		return `${code}n`;
 	}
-	return code + "";
+	return `${code}`;
 };
 
 const PLUGIN_NAME = "DefinePlugin";
@@ -333,7 +337,7 @@ class DefinePlugin {
 	}
 
 	/**
-	 * @param {function({ module: NormalModule, key: string, readonly version: string | undefined }): CodeValuePrimitive} fn generator function
+	 * @param {GeneratorFn} fn generator function
 	 * @param {true | string[] | RuntimeValueOptions=} options options
 	 * @returns {RuntimeValue} runtime value
 	 */
@@ -358,11 +362,13 @@ class DefinePlugin {
 				);
 				const { runtimeTemplate } = compilation;
 
-				const mainHash = createHash(compilation.outputOptions.hashFunction);
+				const mainHash = createHash(
+					/** @type {Algorithm} */
+					(compilation.outputOptions.hashFunction)
+				);
 				mainHash.update(
-					/** @type {string} */ (
-						compilation.valueCacheVersions.get(VALUE_DEP_MAIN)
-					) || ""
+					/** @type {string} */
+					(compilation.valueCacheVersions.get(VALUE_DEP_MAIN)) || ""
 				);
 
 				/**
@@ -385,15 +391,22 @@ class DefinePlugin {
 					 * @param {string} key key
 					 */
 					const addValueDependency = key => {
-						const buildInfo = /** @type {BuildInfo} */ (
-							parser.state.module.buildInfo
-						);
-						buildInfo.valueDependencies.set(
+						const buildInfo =
+							/** @type {BuildInfo} */
+							(parser.state.module.buildInfo);
+						/** @type {NonNullable<BuildInfo["valueDependencies"]>} */
+						(buildInfo.valueDependencies).set(
 							VALUE_DEP_PREFIX + key,
 							compilation.valueCacheVersions.get(VALUE_DEP_PREFIX + key)
 						);
 					};
 
+					/**
+					 * @template {Function} T
+					 * @param {string} key key
+					 * @param {T} fn fn
+					 * @returns {function(TODO): TODO} result
+					 */
 					const withValueDependency =
 						(key, fn) =>
 						(...args) => {
@@ -408,7 +421,7 @@ class DefinePlugin {
 					 * @returns {void}
 					 */
 					const walkDefinitions = (definitions, prefix) => {
-						Object.keys(definitions).forEach(key => {
+						for (const key of Object.keys(definitions)) {
 							const code = definitions[key];
 							if (
 								code &&
@@ -418,14 +431,14 @@ class DefinePlugin {
 							) {
 								walkDefinitions(
 									/** @type {Record<string, CodeValue>} */ (code),
-									prefix + key + "."
+									`${prefix + key}.`
 								);
 								applyObjectDefine(prefix + key, code);
-								return;
+								continue;
 							}
 							applyDefineKey(prefix, key);
 							applyDefine(prefix + key, code);
-						});
+						}
 					};
 
 					/**
@@ -436,13 +449,13 @@ class DefinePlugin {
 					 */
 					const applyDefineKey = (prefix, key) => {
 						const splittedKey = key.split(".");
-						splittedKey.slice(1).forEach((_, i) => {
+						for (const [i, _] of splittedKey.slice(1).entries()) {
 							const fullKey = prefix + splittedKey.slice(0, i + 1).join(".");
 							parser.hooks.canRename.for(fullKey).tap(PLUGIN_NAME, () => {
 								addValueDependency(key);
 								return true;
 							});
-						});
+						}
 					};
 
 					/**
@@ -505,7 +518,7 @@ class DefinePlugin {
 								);
 
 								if (parser.scope.inShorthand) {
-									strCode = parser.scope.inShorthand + ":" + strCode;
+									strCode = `${parser.scope.inShorthand}:${strCode}`;
 								}
 
 								if (WEBPACK_REQUIRE_FUNCTION_REGEXP.test(strCode)) {
@@ -516,9 +529,8 @@ class DefinePlugin {
 									return toConstantDependency(parser, strCode, [
 										RuntimeGlobals.requireScope
 									])(expr);
-								} else {
-									return toConstantDependency(parser, strCode)(expr);
 								}
+								return toConstantDependency(parser, strCode)(expr);
 							});
 						}
 						parser.hooks.evaluateTypeof.for(key).tap(PLUGIN_NAME, expr => {
@@ -542,9 +554,7 @@ class DefinePlugin {
 								logger,
 								null
 							);
-							const typeofCode = isTypeof
-								? codeCode
-								: "typeof (" + codeCode + ")";
+							const typeofCode = isTypeof ? codeCode : `typeof (${codeCode})`;
 							const res = parser.evaluate(typeofCode);
 							recurseTypeof = false;
 							res.setRange(/** @type {Range} */ (expr.range));
@@ -561,9 +571,7 @@ class DefinePlugin {
 								logger,
 								null
 							);
-							const typeofCode = isTypeof
-								? codeCode
-								: "typeof (" + codeCode + ")";
+							const typeofCode = isTypeof ? codeCode : `typeof (${codeCode})`;
 							const res = parser.evaluate(typeofCode);
 							if (!res.isString()) return;
 							return toConstantDependency(
@@ -611,7 +619,7 @@ class DefinePlugin {
 							);
 
 							if (parser.scope.inShorthand) {
-								strCode = parser.scope.inShorthand + ":" + strCode;
+								strCode = `${parser.scope.inShorthand}:${strCode}`;
 							}
 
 							if (WEBPACK_REQUIRE_FUNCTION_REGEXP.test(strCode)) {
@@ -622,9 +630,8 @@ class DefinePlugin {
 								return toConstantDependency(parser, strCode, [
 									RuntimeGlobals.requireScope
 								])(expr);
-							} else {
-								return toConstantDependency(parser, strCode)(expr);
 							}
+							return toConstantDependency(parser, strCode)(expr);
 						});
 						parser.hooks.typeof
 							.for(key)
@@ -657,11 +664,11 @@ class DefinePlugin {
 				 * @returns {void}
 				 */
 				const walkDefinitionsForValues = (definitions, prefix) => {
-					Object.keys(definitions).forEach(key => {
+					for (const key of Object.keys(definitions)) {
 						const code = definitions[key];
 						const version = toCacheVersion(code);
 						const name = VALUE_DEP_PREFIX + prefix + key;
-						mainHash.update("|" + prefix + key);
+						mainHash.update(`|${prefix}${key}`);
 						const oldVersion = compilation.valueCacheVersions.get(name);
 						if (oldVersion === undefined) {
 							compilation.valueCacheVersions.set(name, version);
@@ -681,10 +688,10 @@ class DefinePlugin {
 						) {
 							walkDefinitionsForValues(
 								/** @type {Record<string, CodeValue>} */ (code),
-								prefix + key + "."
+								`${prefix + key}.`
 							);
 						}
-					});
+					}
 				};
 
 				walkDefinitionsForValues(definitions, "");

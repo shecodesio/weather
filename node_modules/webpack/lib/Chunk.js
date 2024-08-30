@@ -22,14 +22,15 @@ const { mergeRuntime } = require("./util/runtime");
 /** @typedef {import("./ChunkGraph").ChunkFilterPredicate} ChunkFilterPredicate */
 /** @typedef {import("./ChunkGraph").ChunkSizeOptions} ChunkSizeOptions */
 /** @typedef {import("./ChunkGraph").ModuleFilterPredicate} ModuleFilterPredicate */
+/** @typedef {import("./ChunkGraph").ModuleId} ModuleId */
 /** @typedef {import("./ChunkGroup")} ChunkGroup */
 /** @typedef {import("./ChunkGroup").ChunkGroupOptions} ChunkGroupOptions */
 /** @typedef {import("./Compilation")} Compilation */
 /** @typedef {import("./Compilation").AssetInfo} AssetInfo */
-/** @typedef {import("./Compilation").PathData} PathData */
 /** @typedef {import("./Entrypoint").EntryOptions} EntryOptions */
 /** @typedef {import("./Module")} Module */
 /** @typedef {import("./ModuleGraph")} ModuleGraph */
+/** @typedef {import("./TemplatedPathPlugin").TemplatePath} TemplatePath */
 /** @typedef {import("./util/Hash")} Hash */
 /** @typedef {import("./util/runtime").RuntimeSpec} RuntimeSpec */
 
@@ -81,9 +82,9 @@ class Chunk {
 		this.idNameHints = new SortableSet();
 		/** @type {boolean} */
 		this.preventIntegration = false;
-		/** @type {(string | function(PathData, AssetInfo=): string) | undefined} */
+		/** @type {TemplatePath | undefined} */
 		this.filenameTemplate = undefined;
-		/** @type {(string | function(PathData, AssetInfo=): string) | undefined} */
+		/** @type {TemplatePath | undefined} */
 		this.cssFilenameTemplate = undefined;
 		/**
 		 * @private
@@ -124,11 +125,11 @@ class Chunk {
 			return undefined;
 		} else if (entryModules.length === 1) {
 			return entryModules[0];
-		} else {
-			throw new Error(
-				"Module.entryModule: Multiple entry modules are not supported by the deprecated API (Use the new ChunkGroup API)"
-			);
 		}
+
+		throw new Error(
+			"Module.entryModule: Multiple entry modules are not supported by the deprecated API (Use the new ChunkGroup API)"
+		);
 	}
 
 	/**
@@ -271,9 +272,9 @@ class Chunk {
 		if (chunkGraph.canChunksBeIntegrated(this, otherChunk)) {
 			chunkGraph.integrateChunks(this, otherChunk);
 			return true;
-		} else {
-			return false;
 		}
+
+		return false;
 	}
 
 	/**
@@ -367,7 +368,9 @@ class Chunk {
 						array = [];
 						chunkModuleIdMap[/** @type {ChunkId} */ (asyncChunk.id)] = array;
 					}
-					const moduleId = chunkGraph.getModuleId(module);
+					const moduleId =
+						/** @type {ModuleId} */
+						(chunkGraph.getModuleId(module));
 					array.push(moduleId);
 					chunkModuleHashMap[moduleId] = chunkGraph.getRenderedModuleHash(
 						module,
@@ -766,7 +769,7 @@ class Chunk {
 				});
 			}
 		}
-		if (list.length === 0) return undefined;
+		if (list.length === 0) return;
 		list.sort((a, b) => {
 			const cmp =
 				/** @type {number} */ (b.order) - /** @type {number} */ (a.order);

@@ -128,26 +128,29 @@ class DebugHash extends Hash {
 	 * @returns {string|Buffer} digest
 	 */
 	digest(encoding) {
-		return Buffer.from("@webpack-debug-digest@" + this.string).toString("hex");
+		return Buffer.from(`@webpack-debug-digest@${this.string}`).toString("hex");
 	}
 }
 
 /** @type {typeof import("crypto") | undefined} */
-let crypto = undefined;
+let crypto;
 /** @type {typeof import("./hash/xxhash64") | undefined} */
-let createXXHash64 = undefined;
+let createXXHash64;
 /** @type {typeof import("./hash/md4") | undefined} */
-let createMd4 = undefined;
+let createMd4;
 /** @type {typeof import("./hash/BatchedHash") | undefined} */
-let BatchedHash = undefined;
+let BatchedHash;
+
+/** @typedef {string | typeof Hash} Algorithm */
 
 /**
  * Creates a hash by name or function
- * @param {string | typeof Hash} algorithm the algorithm name or a constructor creating a hash
+ * @param {Algorithm} algorithm the algorithm name or a constructor creating a hash
  * @returns {Hash} the hash
  */
 module.exports = algorithm => {
 	if (typeof algorithm === "function") {
+		// eslint-disable-next-line new-cap
 		return new BulkUpdateDecorator(() => new algorithm());
 	}
 	switch (algorithm) {

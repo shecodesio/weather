@@ -11,6 +11,7 @@ const { someInIterable } = require("./util/IterableHelpers");
 const { compareModulesById } = require("./util/comparators");
 const { dirname, mkdirp } = require("./util/fs");
 
+/** @typedef {import("./ChunkGraph").ModuleId} ModuleId */
 /** @typedef {import("./Compiler")} Compiler */
 /** @typedef {import("./Compiler").IntermediateFileSystem} IntermediateFileSystem */
 /** @typedef {import("./Module").BuildMeta} BuildMeta */
@@ -55,7 +56,7 @@ class LibManifestPlugin {
 				const moduleGraph = compilation.moduleGraph;
 				// store used paths to detect issue and output an error. #18200
 				const usedPaths = new Set();
-				asyncLib.forEach(
+				asyncLib.each(
 					Array.from(compilation.chunks),
 					(chunk, callback) => {
 						if (!chunk.canBeInitial()) {
@@ -67,7 +68,7 @@ class LibManifestPlugin {
 							chunk
 						});
 						if (usedPaths.has(targetPath)) {
-							callback(new Error(`each chunk must have a unique path`));
+							callback(new Error("each chunk must have a unique path"));
 							return;
 						}
 						usedPaths.add(targetPath);
@@ -102,7 +103,7 @@ class LibManifestPlugin {
 								const providedExports = exportsInfo.getProvidedExports();
 								/** @type {ManifestModuleData} */
 								const data = {
-									id: chunkGraph.getModuleId(module),
+									id: /** @type {ModuleId} */ (chunkGraph.getModuleId(module)),
 									buildMeta: /** @type {BuildMeta} */ (module.buildMeta),
 									exports: Array.isArray(providedExports)
 										? providedExports

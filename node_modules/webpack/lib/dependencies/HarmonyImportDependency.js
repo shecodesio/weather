@@ -59,7 +59,6 @@ const ExportPresenceModes = {
 
 class HarmonyImportDependency extends ModuleDependency {
 	/**
-	 *
 	 * @param {string} request request string
 	 * @param {number} sourceOrder source order
 	 * @param {ImportAttributes=} attributes import attributes
@@ -89,7 +88,7 @@ class HarmonyImportDependency extends ModuleDependency {
 	 * @returns {string} name of the variable for the import
 	 */
 	getImportVar(moduleGraph) {
-		const module = moduleGraph.getParentModule(this);
+		const module = /** @type {Module} */ (moduleGraph.getParentModule(this));
 		const meta = /** @type {TODO} */ (moduleGraph.getMeta(module));
 		let importVarMap = meta.importVarMap;
 		if (!importVarMap) meta.importVarMap = importVarMap = new Map();
@@ -351,7 +350,7 @@ HarmonyImportDependency.Template = class HarmonyImportDependencyTemplate extends
 					importStatement[1],
 					InitFragment.STAGE_ASYNC_HARMONY_IMPORTS,
 					dep.sourceOrder,
-					key + " compat",
+					`${key} compat`,
 					runtimeCondition
 				)
 			);
@@ -369,7 +368,6 @@ HarmonyImportDependency.Template = class HarmonyImportDependencyTemplate extends
 	}
 
 	/**
-	 *
 	 * @param {Module} module the module
 	 * @param {Module} referencedModule the referenced module
 	 * @returns {RuntimeSpec | boolean} runtimeCondition in which this import has been emitted
