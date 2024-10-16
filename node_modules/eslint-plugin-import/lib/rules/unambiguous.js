@@ -4,10 +4,11 @@
 
 
 var _unambiguous = require('eslint-module-utils/unambiguous');
-var _docsUrl = require('../docsUrl');var _docsUrl2 = _interopRequireDefault(_docsUrl);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { 'default': obj };} /**
-                                                                                                                                                                                       * @fileOverview Report modules that could parse incorrectly as scripts.
-                                                                                                                                                                                       * @author Ben Mosher
-                                                                                                                                                                                       */module.exports = { meta: {
+var _docsUrl = require('../docsUrl');var _docsUrl2 = _interopRequireDefault(_docsUrl);
+var _sourceType = require('../core/sourceType');var _sourceType2 = _interopRequireDefault(_sourceType);function _interopRequireDefault(obj) {return obj && obj.__esModule ? obj : { 'default': obj };}
+
+module.exports = {
+  meta: {
     type: 'suggestion',
     docs: {
       category: 'Module systems',
@@ -19,7 +20,7 @@ var _docsUrl = require('../docsUrl');var _docsUrl2 = _interopRequireDefault(_doc
 
   create: function () {function create(context) {
       // ignore non-modules
-      if (context.parserOptions.sourceType !== 'module') {
+      if ((0, _sourceType2['default'])(context) !== 'module') {
         return {};
       }
 
@@ -34,5 +35,8 @@ var _docsUrl = require('../docsUrl');var _docsUrl2 = _interopRequireDefault(_doc
           }return Program;}() };
 
 
-    }return create;}() };
-//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9ydWxlcy91bmFtYmlndW91cy5qcyJdLCJuYW1lcyI6WyJtb2R1bGUiLCJleHBvcnRzIiwibWV0YSIsInR5cGUiLCJkb2NzIiwiY2F0ZWdvcnkiLCJkZXNjcmlwdGlvbiIsInVybCIsInNjaGVtYSIsImNyZWF0ZSIsImNvbnRleHQiLCJwYXJzZXJPcHRpb25zIiwic291cmNlVHlwZSIsIlByb2dyYW0iLCJhc3QiLCJyZXBvcnQiLCJub2RlIiwibWVzc2FnZSJdLCJtYXBwaW5ncyI6Ijs7Ozs7QUFLQTtBQUNBLHFDLGlKQU5BOzs7eUxBUUFBLE9BQU9DLE9BQVAsR0FBaUIsRUFDZkMsTUFBTTtBQUNKQyxVQUFNLFlBREY7QUFFSkMsVUFBTTtBQUNKQyxnQkFBVSxnQkFETjtBQUVKQyxtQkFBYSxrRUFGVDtBQUdKQyxXQUFLLDBCQUFRLGFBQVIsQ0FIRCxFQUZGOztBQU9KQyxZQUFRLEVBUEosRUFEUzs7O0FBV2ZDLFFBWGUsK0JBV1JDLE9BWFEsRUFXQztBQUNkO0FBQ0EsVUFBSUEsUUFBUUMsYUFBUixDQUFzQkMsVUFBdEIsS0FBcUMsUUFBekMsRUFBbUQ7QUFDakQsZUFBTyxFQUFQO0FBQ0Q7O0FBRUQsYUFBTztBQUNMQyxlQURLLGdDQUNHQyxHQURILEVBQ1E7QUFDWCxnQkFBSSxDQUFDLDJCQUFTQSxHQUFULENBQUwsRUFBb0I7QUFDbEJKLHNCQUFRSyxNQUFSLENBQWU7QUFDYkMsc0JBQU1GLEdBRE87QUFFYkcseUJBQVMsZ0RBRkksRUFBZjs7QUFJRDtBQUNGLFdBUkksb0JBQVA7OztBQVdELEtBNUJjLG1CQUFqQiIsImZpbGUiOiJ1bmFtYmlndW91cy5qcyIsInNvdXJjZXNDb250ZW50IjpbIi8qKlxuICogQGZpbGVPdmVydmlldyBSZXBvcnQgbW9kdWxlcyB0aGF0IGNvdWxkIHBhcnNlIGluY29ycmVjdGx5IGFzIHNjcmlwdHMuXG4gKiBAYXV0aG9yIEJlbiBNb3NoZXJcbiAqL1xuXG5pbXBvcnQgeyBpc01vZHVsZSB9IGZyb20gJ2VzbGludC1tb2R1bGUtdXRpbHMvdW5hbWJpZ3VvdXMnO1xuaW1wb3J0IGRvY3NVcmwgZnJvbSAnLi4vZG9jc1VybCc7XG5cbm1vZHVsZS5leHBvcnRzID0ge1xuICBtZXRhOiB7XG4gICAgdHlwZTogJ3N1Z2dlc3Rpb24nLFxuICAgIGRvY3M6IHtcbiAgICAgIGNhdGVnb3J5OiAnTW9kdWxlIHN5c3RlbXMnLFxuICAgICAgZGVzY3JpcHRpb246ICdGb3JiaWQgcG90ZW50aWFsbHkgYW1iaWd1b3VzIHBhcnNlIGdvYWwgKGBzY3JpcHRgIHZzLiBgbW9kdWxlYCkuJyxcbiAgICAgIHVybDogZG9jc1VybCgndW5hbWJpZ3VvdXMnKSxcbiAgICB9LFxuICAgIHNjaGVtYTogW10sXG4gIH0sXG5cbiAgY3JlYXRlKGNvbnRleHQpIHtcbiAgICAvLyBpZ25vcmUgbm9uLW1vZHVsZXNcbiAgICBpZiAoY29udGV4dC5wYXJzZXJPcHRpb25zLnNvdXJjZVR5cGUgIT09ICdtb2R1bGUnKSB7XG4gICAgICByZXR1cm4ge307XG4gICAgfVxuXG4gICAgcmV0dXJuIHtcbiAgICAgIFByb2dyYW0oYXN0KSB7XG4gICAgICAgIGlmICghaXNNb2R1bGUoYXN0KSkge1xuICAgICAgICAgIGNvbnRleHQucmVwb3J0KHtcbiAgICAgICAgICAgIG5vZGU6IGFzdCxcbiAgICAgICAgICAgIG1lc3NhZ2U6ICdUaGlzIG1vZHVsZSBjb3VsZCBiZSBwYXJzZWQgYXMgYSB2YWxpZCBzY3JpcHQuJyxcbiAgICAgICAgICB9KTtcbiAgICAgICAgfVxuICAgICAgfSxcbiAgICB9O1xuXG4gIH0sXG59O1xuIl19
+    }return create;}() }; /**
+                           * @fileOverview Report modules that could parse incorrectly as scripts.
+                           * @author Ben Mosher
+                           */
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9ydWxlcy91bmFtYmlndW91cy5qcyJdLCJuYW1lcyI6WyJtb2R1bGUiLCJleHBvcnRzIiwibWV0YSIsInR5cGUiLCJkb2NzIiwiY2F0ZWdvcnkiLCJkZXNjcmlwdGlvbiIsInVybCIsInNjaGVtYSIsImNyZWF0ZSIsImNvbnRleHQiLCJQcm9ncmFtIiwiYXN0IiwicmVwb3J0Iiwibm9kZSIsIm1lc3NhZ2UiXSwibWFwcGluZ3MiOiI7Ozs7O0FBS0E7QUFDQSxxQztBQUNBLGdEOztBQUVBQSxPQUFPQyxPQUFQLEdBQWlCO0FBQ2ZDLFFBQU07QUFDSkMsVUFBTSxZQURGO0FBRUpDLFVBQU07QUFDSkMsZ0JBQVUsZ0JBRE47QUFFSkMsbUJBQWEsa0VBRlQ7QUFHSkMsV0FBSywwQkFBUSxhQUFSLENBSEQsRUFGRjs7QUFPSkMsWUFBUSxFQVBKLEVBRFM7OztBQVdmQyxRQVhlLCtCQVdSQyxPQVhRLEVBV0M7QUFDZDtBQUNBLFVBQUksNkJBQVdBLE9BQVgsTUFBd0IsUUFBNUIsRUFBc0M7QUFDcEMsZUFBTyxFQUFQO0FBQ0Q7O0FBRUQsYUFBTztBQUNMQyxlQURLLGdDQUNHQyxHQURILEVBQ1E7QUFDWCxnQkFBSSxDQUFDLDJCQUFTQSxHQUFULENBQUwsRUFBb0I7QUFDbEJGLHNCQUFRRyxNQUFSLENBQWU7QUFDYkMsc0JBQU1GLEdBRE87QUFFYkcseUJBQVMsZ0RBRkksRUFBZjs7QUFJRDtBQUNGLFdBUkksb0JBQVA7OztBQVdELEtBNUJjLG1CQUFqQixDLENBVEEiLCJmaWxlIjoidW5hbWJpZ3VvdXMuanMiLCJzb3VyY2VzQ29udGVudCI6WyIvKipcbiAqIEBmaWxlT3ZlcnZpZXcgUmVwb3J0IG1vZHVsZXMgdGhhdCBjb3VsZCBwYXJzZSBpbmNvcnJlY3RseSBhcyBzY3JpcHRzLlxuICogQGF1dGhvciBCZW4gTW9zaGVyXG4gKi9cblxuaW1wb3J0IHsgaXNNb2R1bGUgfSBmcm9tICdlc2xpbnQtbW9kdWxlLXV0aWxzL3VuYW1iaWd1b3VzJztcbmltcG9ydCBkb2NzVXJsIGZyb20gJy4uL2RvY3NVcmwnO1xuaW1wb3J0IHNvdXJjZVR5cGUgZnJvbSAnLi4vY29yZS9zb3VyY2VUeXBlJztcblxubW9kdWxlLmV4cG9ydHMgPSB7XG4gIG1ldGE6IHtcbiAgICB0eXBlOiAnc3VnZ2VzdGlvbicsXG4gICAgZG9jczoge1xuICAgICAgY2F0ZWdvcnk6ICdNb2R1bGUgc3lzdGVtcycsXG4gICAgICBkZXNjcmlwdGlvbjogJ0ZvcmJpZCBwb3RlbnRpYWxseSBhbWJpZ3VvdXMgcGFyc2UgZ29hbCAoYHNjcmlwdGAgdnMuIGBtb2R1bGVgKS4nLFxuICAgICAgdXJsOiBkb2NzVXJsKCd1bmFtYmlndW91cycpLFxuICAgIH0sXG4gICAgc2NoZW1hOiBbXSxcbiAgfSxcblxuICBjcmVhdGUoY29udGV4dCkge1xuICAgIC8vIGlnbm9yZSBub24tbW9kdWxlc1xuICAgIGlmIChzb3VyY2VUeXBlKGNvbnRleHQpICE9PSAnbW9kdWxlJykge1xuICAgICAgcmV0dXJuIHt9O1xuICAgIH1cblxuICAgIHJldHVybiB7XG4gICAgICBQcm9ncmFtKGFzdCkge1xuICAgICAgICBpZiAoIWlzTW9kdWxlKGFzdCkpIHtcbiAgICAgICAgICBjb250ZXh0LnJlcG9ydCh7XG4gICAgICAgICAgICBub2RlOiBhc3QsXG4gICAgICAgICAgICBtZXNzYWdlOiAnVGhpcyBtb2R1bGUgY291bGQgYmUgcGFyc2VkIGFzIGEgdmFsaWQgc2NyaXB0LicsXG4gICAgICAgICAgfSk7XG4gICAgICAgIH1cbiAgICAgIH0sXG4gICAgfTtcblxuICB9LFxufTtcbiJdfQ==
