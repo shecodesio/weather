@@ -12,7 +12,9 @@ const keys = Object.keys;
 const plugins = exports.plugins = filterAvailable(_plugins);
 const pluginsBugfixes = exports.pluginsBugfixes = filterAvailable(_pluginBugfixes);
 const overlappingPlugins = exports.overlappingPlugins = filterAvailable(_overlappingPlugins);
-overlappingPlugins["syntax-import-attributes"] = ["syntax-import-assertions"];
+{
+  overlappingPlugins["syntax-import-attributes"] = ["syntax-import-assertions"];
+}
 function filterAvailable(data) {
   const result = {};
   for (const plugin of keys(data)) {

@@ -24,7 +24,7 @@ const errorMessage = {
   type: 'JSXAttribute',
 };
 
-const roleKeys = [...roles.keys()];
+const roleKeys = roles.keys();
 
 const validRoles = roleKeys.filter((role) => roles.get(role).abstract === false);
 const invalidRoles = roleKeys.filter((role) => roles.get(role).abstract === true);
@@ -84,9 +84,8 @@ ruleTester.run('aria-role', rule, {
       code: '<Box asChild="div" role="button" />',
       settings: customDivSettings,
     },
-    {
-      code: '<svg role="graphics-document document" />',
-    },
+    { code: '<svg role="graphics-document document" />' },
+    { code: '<svg role="img" />' },
   )).concat(validTests).map(parserOptionsMapper),
 
   invalid: parsers.all([].concat(

@@ -6,7 +6,10 @@ const regenerate = require('regenerate');
 const unicodeMatchProperty = require('unicode-match-property-ecmascript');
 const unicodeMatchPropertyValue = require('unicode-match-property-value-ecmascript');
 const iuMappings = require('./data/iu-mappings.js');
+const iBMPMappings = require('./data/i-bmp-mappings.js');
+const iuFoldings = require('./data/iu-foldings.js');
 const ESCAPE_SETS = require('./data/character-class-escape-sets.js');
+const { UNICODE_SET, UNICODE_IV_SET } = require('./data/all-characters.js');
 
 function flatMap(array, callback) {
 	const result = [];
@@ -26,11 +29,8 @@ function regenerateContainsAstral(regenerateData) {
 	return data.length >= 1 && data[data.length - 1] >= 0x10000;
 }
 
-const SPECIAL_CHARS = /([\\^$.*+?()[\]{}|])/g;
-
-// Prepare a Regenerate set containing all code points, used for negative
-// character classes (if any).
-const UNICODE_SET = regenerate().addRange(0x0, 0x10FFFF);
+// https://tc39.es/ecma262/#prod-SyntaxCharacter
+const SYNTAX_CHARS = /[\\^$.*+?()[\]{}|]/g;
 
 const ASTRAL_SET = regenerate().addRange(0x10000, 0x10FFFF);
 
@@ -47,10 +47,15 @@ const NEWLINE_SET = regenerate().add(
 const DOT_SET_UNICODE = UNICODE_SET.clone() // all Unicode code points
 	.remove(NEWLINE_SET);
 
-const getCharacterClassEscapeSet = (character, unicode, ignoreCase) => {
+const getCharacterClassEscapeSet = (character, unicode, ignoreCase, shouldApplySCF) => {
 	if (unicode) {
 		if (ignoreCase) {
-			return ESCAPE_SETS.UNICODE_IGNORE_CASE.get(character);
+			const result = ESCAPE_SETS.UNICODE_IGNORE_CASE.get(character);
+			if (shouldApplySCF) {
+				return ESCAPE_SETS.UNICODESET_IGNORE_CASE.get(character);
+			} else {
+				return result;
+			}
 		}
 		return ESCAPE_SETS.UNICODE.get(character);
 	}
@@ -94,7 +99,7 @@ const handleLoneUnicodePropertyNameOrValue = (value) => {
 	return getUnicodePropertyValueSet(property);
 };
 
-const getUnicodePropertyEscapeSet = (value, isNegative) => {
+const getUnicodePropertyEscapeSet = (value, isNegative, isUnicodeSetIgnoreCase) => {
 	const parts = value.split('=');
 	const firstPart = parts[0];
 	let set;
@@ -111,7 +116,7 @@ const getUnicodePropertyEscapeSet = (value, isNegative) => {
 			throw new Error('Cannot negate Unicode property of strings');
 		}
 		return {
-			characters: UNICODE_SET.clone().remove(set.characters),
+			characters: (isUnicodeSetIgnoreCase ? UNICODE_IV_SET : UNICODE_SET).clone().remove(set.characters),
 			strings: new Set()
 		};
 	}
@@ -119,15 +124,25 @@ const getUnicodePropertyEscapeSet = (value, isNegative) => {
 		characters: set.characters.clone(),
 		strings: set.strings
 			// We need to escape strings like *️⃣ to make sure that they can be safely used in unions.
-			? new Set(set.strings.map(str => str.replace(SPECIAL_CHARS, '\\$1')))
+			? new Set(set.strings.map(str => str.replace(SYNTAX_CHARS, '\\$&')))
 			: new Set()
 	};
 };
 
-const getUnicodePropertyEscapeCharacterClassData = (property, isNegative) => {
-	const set = getUnicodePropertyEscapeSet(property, isNegative);
+const getUnicodePropertyEscapeCharacterClassData = (property, isNegative, isUnicodeSetIgnoreCase, shouldApplySCF) => {
+	const set = getUnicodePropertyEscapeSet(property, isNegative, isUnicodeSetIgnoreCase);
 	const data = getCharacterClassEmptyData();
-	data.singleChars = set.characters;
+	const singleChars = shouldApplySCF ? regenerate(set.characters.toArray().map(ch => simpleCaseFolding(ch))) : set.characters;
+	const caseEqFlags = configGetCaseEqFlags();
+	if (caseEqFlags) {
+		for (const codepoint of singleChars.toArray()) {
+			const list = getCaseEquivalents(codepoint, caseEqFlags);
+			if (list) {
+				singleChars.add(list);
+			}
+		}
+	}
+	data.singleChars = singleChars;
 	if (set.strings.size > 0) {
 		data.longStrings = set.strings;
 		data.maybeIncludesStrings = true;
@@ -135,35 +150,45 @@ const getUnicodePropertyEscapeCharacterClassData = (property, isNegative) => {
 	return data;
 };
 
-function configNeedCaseFoldAscii() {
-	return !!config.modifiersData.i;
+const CASE_EQ_FLAG_NONE = 0b00;
+const CASE_EQ_FLAG_BMP = 0b01;
+const CASE_EQ_FLAG_UNICODE = 0b10;
+
+function configGetCaseEqFlags() {
+	let flags = CASE_EQ_FLAG_NONE;
+	if (config.modifiersData.i === true) {
+		if (config.transform.modifiers) {
+			flags |= CASE_EQ_FLAG_BMP;
+			if (config.flags.unicode || config.flags.unicodeSets) {
+				flags |= CASE_EQ_FLAG_UNICODE;
+			}
+		}
+	} else if (config.modifiersData.i === undefined) {
+		if (config.transform.unicodeFlag && config.flags.ignoreCase) {
+			flags |= CASE_EQ_FLAG_UNICODE;
+		}
+	}
+	return flags;
 }
 
-function configNeedCaseFoldUnicode() {
-	// config.modifiersData.i : undefined | false
-	if (config.modifiersData.i === false) return false;
-	if (!config.transform.unicodeFlag) return false;
-	return Boolean(config.modifiersData.i || config.flags.ignoreCase);
-}
-
-// Given a range of code points, add any case-folded code points in that range
+// Given a range of code points, add any case-equivalent code points in that range
 // to a set.
-regenerate.prototype.iuAddRange = function(min, max) {
+regenerate.prototype.iuAddRange = function(min, max, caseEqFlags) {
 	const $this = this;
 	do {
-		const folded = caseFold(min, configNeedCaseFoldAscii(), configNeedCaseFoldUnicode());
-		if (folded) {
-			$this.add(folded);
+		const list = getCaseEquivalents(min, caseEqFlags);
+		if (list) {
+			$this.add(list);
 		}
 	} while (++min <= max);
 	return $this;
 };
-regenerate.prototype.iuRemoveRange = function(min, max) {
+regenerate.prototype.iuRemoveRange = function(min, max, caseEqFlags) {
 	const $this = this;
 	do {
-		const folded = caseFold(min, configNeedCaseFoldAscii(), configNeedCaseFoldUnicode());
-		if (folded) {
-			$this.remove(folded);
+		const list = getCaseEquivalents(min, caseEqFlags);
+		if (list) {
+			$this.remove(list);
 		}
 	} while (++min <= max);
 	return $this;
@@ -200,18 +225,49 @@ const wrap = (tree, pattern) => {
 	};
 };
 
-const caseFold = (codePoint, includeAscii, includeUnicode) => {
-	let folded = (includeUnicode ? iuMappings.get(codePoint) : undefined) || [];
-	if (typeof folded === 'number') folded = [folded];
-	if (includeAscii) {
-		if (codePoint >= 0x41 && codePoint <= 0x5A) {
-			folded.push(codePoint + 0x20);
-		} else if (codePoint >= 0x61 && codePoint <= 0x7A) {
-			folded.push(codePoint - 0x20);
+/**
+ * Given any codepoint ch, returns false or an array of characters,
+ * such that for every c in the array,
+ *   c != ch and Canonicalize(~, c) == Canonicalize(~, ch)
+ * 
+ * where Canonicalize is defined in
+ * https://tc39.es/ecma262/#sec-runtime-semantics-canonicalize-ch
+ * @param {number} codePoint input code point
+ * @param {number} flags bitwise flags composed of CASE_EQ_FLAG_*
+ * @returns false | number[]
+ */
+const getCaseEquivalents = (codePoint, flags) => {
+	if (flags === CASE_EQ_FLAG_NONE) {
+		return false;
+	}
+	let result = ((flags & CASE_EQ_FLAG_UNICODE) ? iuMappings.get(codePoint) : undefined) || [];
+	if (typeof result === "number") result = [result];
+	if (flags & CASE_EQ_FLAG_BMP) {
+		for (const cp of [codePoint].concat(result)) {
+			// Fast path for ASCII characters
+			if (cp >= 0x41 && cp <= 0x5a) {
+				result.push(cp + 0x20);
+			} else if (cp >= 0x61 && cp <= 0x7a) {
+				result.push(cp - 0x20);
+			} else {
+				result = result.concat(iBMPMappings.get(cp) || []);
+			}
 		}
 	}
-	return folded.length == 0 ? false : folded;
+	return result.length == 0 ? false : result;
 };
+
+// https://tc39.es/ecma262/#sec-maybesimplecasefolding
+const simpleCaseFolding = (codePoint) => {
+	// Fast path for ASCII characters
+	if (codePoint <= 0x7F) {
+		if (codePoint >= 0x41 && codePoint <= 0x5A) {
+			return codePoint + 0x20;
+		}
+		return codePoint;
+	}
+	return iuFoldings.get(codePoint) || codePoint;
+}
 
 const buildHandler = (action) => {
 	switch (action) {
@@ -226,8 +282,8 @@ const buildHandler = (action) => {
 				range: (data, start, end) => {
 					data.singleChars.addRange(start, end);
 				},
-				iuRange: (data, start, end) => {
-					data.singleChars.iuAddRange(start, end);
+				iuRange: (data, start, end, caseEqFlags) => {
+					data.singleChars.iuAddRange(start, end, caseEqFlags);
 				},
 				nested: (data, nestedData) => {
 					data.singleChars.add(nestedData.singleChars);
@@ -248,8 +304,8 @@ const buildHandler = (action) => {
 				range: (data, start, end) => {
 					data.singleChars = UNICODE_SET.clone().removeRange(start, end).add(data.singleChars);
 				},
-				iuRange: (data, start, end) => {
-					data.singleChars = UNICODE_SET.clone().iuRemoveRange(start, end).add(data.singleChars);
+				iuRange: (data, start, end, caseEqFlags) => {
+					data.singleChars = UNICODE_SET.clone().iuRemoveRange(start, end, caseEqFlags).add(data.singleChars);
 				},
 				nested: (data, nestedData) => {
 					regSet(data, nestedData.singleChars);
@@ -279,9 +335,9 @@ const buildHandler = (action) => {
 					data.longStrings.clear();
 					data.maybeIncludesStrings = false;
 				},
-				iuRange: (data, start, end) => {
-					if (data.first) data.singleChars.iuAddRange(start, end);
-					else data.singleChars.intersection(regenerate().iuAddRange(start, end));
+				iuRange: (data, start, end, caseEqFlags) => {
+					if (data.first) data.singleChars.iuAddRange(start, end, caseEqFlags);
+					else data.singleChars.intersection(regenerate().iuAddRange(start, end, caseEqFlags));
 					data.longStrings.clear();
 					data.maybeIncludesStrings = false;
 				},
@@ -315,9 +371,9 @@ const buildHandler = (action) => {
 					if (data.first) data.singleChars.addRange(start, end);
 					else data.singleChars.removeRange(start, end);
 				},
-				iuRange: (data, start, end) => {
-					if (data.first) data.singleChars.iuAddRange(start, end);
-					else data.singleChars.iuRemoveRange(start, end);
+				iuRange: (data, start, end, caseEqFlags) => {
+					if (data.first) data.singleChars.iuAddRange(start, end, caseEqFlags);
+					else data.singleChars.iuRemoveRange(start, end, caseEqFlags);
 				},
 				nested: (data, nestedData) => {
 					regSet(data, nestedData.singleChars);
@@ -350,42 +406,40 @@ const getCharacterClassEmptyData = () => ({
 	maybeIncludesStrings: false
 });
 
-const maybeFold = (codePoint) => {
-	const caseFoldAscii = configNeedCaseFoldAscii();
-	const caseFoldUnicode = configNeedCaseFoldUnicode();
-
-	if (caseFoldAscii || caseFoldUnicode) {
-		const folded = caseFold(codePoint, caseFoldAscii, caseFoldUnicode);
-		if (folded) {
-			return [codePoint, folded];
-		}
+const concatCaseEquivalents = (codePoint, caseEqFlags) => {
+	const caseEquivalents = getCaseEquivalents(codePoint, caseEqFlags);
+	if (caseEquivalents) {
+		return [codePoint, ...caseEquivalents];
 	}
 	return [codePoint];
 };
 
-const computeClassStrings = (classStrings, regenerateOptions) => {
+const computeClassStrings = (classStrings, regenerateOptions, caseEqFlags, shouldApplySCF) => {
 	let data = getCharacterClassEmptyData();
-
-	const caseFoldAscii = configNeedCaseFoldAscii();
-	const caseFoldUnicode = configNeedCaseFoldUnicode();
 
 	for (const string of classStrings.strings) {
 		if (string.characters.length === 1) {
-			maybeFold(string.characters[0].codePoint).forEach((cp) => {
+			const codePoint = shouldApplySCF ? simpleCaseFolding(string.characters[0].codePoint) : string.characters[0].codePoint
+			concatCaseEquivalents(codePoint, caseEqFlags).forEach((cp) => {
 				data.singleChars.add(cp);
 			});
 		} else {
-			let stringifiedString;
-			if (caseFoldUnicode || caseFoldAscii) {
-				stringifiedString = '';
+			let stringifiedString = '';
+			if (caseEqFlags) {
 				for (const ch of string.characters) {
-					let set = regenerate(ch.codePoint);
-					const folded = maybeFold(ch.codePoint);
-					if (folded) set.add(folded);
+					const codePoint = shouldApplySCF ? simpleCaseFolding(ch.codePoint) : ch.codePoint;
+					const set = regenerate(concatCaseEquivalents(codePoint, caseEqFlags));
 					stringifiedString += set.toString(regenerateOptions);
 				}
 			} else {
-				stringifiedString = string.characters.map(ch => generate(ch)).join('')
+				for (const ch of string.characters) {
+					const codePoint = shouldApplySCF ? simpleCaseFolding(ch.codePoint) : ch.codePoint;
+					if (codePoint !== ch.codePoint) {
+						stringifiedString += regenerate(codePoint).toString(regenerateOptions);
+					} else {
+						stringifiedString += generate(ch);
+					}
+				}
 			}
 
 			data.longStrings.add(stringifiedString);
@@ -396,11 +450,13 @@ const computeClassStrings = (classStrings, regenerateOptions) => {
 	return data;
 }
 
-const computeCharacterClass = (characterClassItem, regenerateOptions) => {
+const computeCharacterClass = (characterClassItem, regenerateOptions, shouldApplySCF) => {
 	let data = getCharacterClassEmptyData();
 
 	let handlePositive;
 	let handleNegative;
+
+	let caseEqFlags = configGetCaseEqFlags();
 
 	switch (characterClassItem.kind) {
 		case 'union':
@@ -411,11 +467,17 @@ const computeCharacterClass = (characterClassItem, regenerateOptions) => {
 			handlePositive = buildHandler('intersection');
 			handleNegative = buildHandler('subtraction');
 			if (config.transform.unicodeSetsFlag) data.transformed = true;
+			if (config.isIgnoreCaseMode) {
+				shouldApplySCF = true;
+			}
 			break;
 		case 'subtraction':
 			handlePositive = buildHandler('subtraction');
 			handleNegative = buildHandler('intersection');
 			if (config.transform.unicodeSetsFlag) data.transformed = true;
+			if (config.isIgnoreCaseMode) {
+				shouldApplySCF = true;
+			}
 			break;
 		// The `default` clause is only here as a safeguard; it should never be
 		// reached. Code coverage tools should ignore it.
@@ -424,22 +486,32 @@ const computeCharacterClass = (characterClassItem, regenerateOptions) => {
 			throw new Error(`Unknown character class kind: ${ characterClassItem.kind }`);
 	}
 
-	const caseFoldAscii = configNeedCaseFoldAscii();
-	const caseFoldUnicode = configNeedCaseFoldUnicode();
-
 	for (const item of characterClassItem.body) {
 		switch (item.type) {
 			case 'value':
-				maybeFold(item.codePoint).forEach((cp) => {
-					handlePositive.single(data, cp);
-				});
+				const codePoint = shouldApplySCF ? simpleCaseFolding(item.codePoint) : item.codePoint;
+				const list = concatCaseEquivalents(codePoint, caseEqFlags);
+				handlePositive.regSet(data, regenerate(list));
+				if (list.length > 1) {
+					data.transformed = true;
+				}
 				break;
 			case 'characterClassRange':
 				const min = item.min.codePoint;
 				const max = item.max.codePoint;
-				handlePositive.range(data, min, max);
-				if (caseFoldAscii || caseFoldUnicode) {
-					handlePositive.iuRange(data, min, max);
+				if (shouldApplySCF) {
+					let list = [];
+					for (let cp = min; cp <= max; cp++) {
+						list.push(simpleCaseFolding(cp));
+					}
+					handlePositive.regSet(data, regenerate(list));
+				} else {
+					handlePositive.range(data, min, max);
+				}
+				if (caseEqFlags) {
+					// If shouldApplySCF is true, it is still ok to call iuRange because 
+					// the set [min, max] shares the same case equivalents with scf([min, max])
+					handlePositive.iuRange(data, min, max, caseEqFlags);
 					data.transformed = true;
 				}
 				break;
@@ -447,25 +519,31 @@ const computeCharacterClass = (characterClassItem, regenerateOptions) => {
 				handlePositive.regSet(data, getCharacterClassEscapeSet(
 					item.value,
 					config.flags.unicode || config.flags.unicodeSets,
-					config.flags.ignoreCase
+					config.flags.ignoreCase,
+					shouldApplySCF
 				));
 				break;
 			case 'unicodePropertyEscape':
-				const nestedData = getUnicodePropertyEscapeCharacterClassData(item.value, item.negative);
+				const nestedData = getUnicodePropertyEscapeCharacterClassData(
+					item.value,
+					item.negative,
+					config.flags.unicodeSets && config.isIgnoreCaseMode,
+					shouldApplySCF
+				);
 				handlePositive.nested(data, nestedData);
 				data.transformed =
 					data.transformed ||
 					config.transform.unicodePropertyEscapes ||
-					(config.transform.unicodeSetsFlag && (nestedData.maybeIncludesStrings || characterClassItem.kind !== "union"));
+					(config.transform.unicodeSetsFlag && (nestedData.maybeIncludesStrings || characterClassItem.kind !== "union" || item.negative));
 				break;
 			case 'characterClass':
 				const handler = item.negative ? handleNegative : handlePositive;
-				const res = computeCharacterClass(item, regenerateOptions);
+				const res = computeCharacterClass(item, regenerateOptions, shouldApplySCF);
 				handler.nested(data, res);
 				data.transformed = true;
 				break;
 			case 'classStrings':
-				handlePositive.nested(data, computeClassStrings(item, regenerateOptions));
+				handlePositive.nested(data, computeClassStrings(item, regenerateOptions, caseEqFlags, shouldApplySCF));
 				data.transformed = true;
 				break;
 			// The `default` clause is only here as a safeguard; it should never be
@@ -557,17 +635,19 @@ const processModifiers = (item, regenerateOptions, groups) => {
 	const enabling = item.modifierFlags.enabling;
 	const disabling = item.modifierFlags.disabling;
 
-	delete item.modifierFlags;
-	item.behavior = 'ignore';
-
 	const oldData = Object.assign({}, config.modifiersData);
 
-	enabling.split('').forEach(flag => {
+	for (const flag of enabling) {
 		config.modifiersData[flag] = true;
-	});
-	disabling.split('').forEach(flag => {
+	}
+	for (const flag of disabling) {
 		config.modifiersData[flag] = false;
-	});
+	}
+
+	if (config.transform.modifiers) {
+		delete item.modifierFlags;
+		item.behavior = 'ignore';
+	}
 
 	item.body = item.body.map(term => {
 		return processTerm(term, regenerateOptions, groups);
@@ -584,9 +664,9 @@ const processTerm = (item, regenerateOptions, groups) => {
 			if (config.transform.unicodeFlag) {
 				update(
 					item,
-					getUnicodeDotSet(config.flags.dotAll || config.modifiersData.s).toString(regenerateOptions)
+					getUnicodeDotSet(config.isDotAllMode).toString(regenerateOptions)
 				);
-			} else if (config.transform.dotAllFlag || config.modifiersData.s) {
+			} else if ((config.modifiersData.s != null ? config.modifiersData.s && config.transform.modifiers : config.transform.dotAllFlag)) {
 				// TODO: consider changing this at the regenerate level.
 				update(item, '[^]');
 			}
@@ -595,7 +675,7 @@ const processTerm = (item, regenerateOptions, groups) => {
 			item = processCharacterClass(item, regenerateOptions);
 			break;
 		case 'unicodePropertyEscape':
-			const data = getUnicodePropertyEscapeCharacterClassData(item.value, item.negative);
+			const data = getUnicodePropertyEscapeCharacterClassData(item.value, item.negative, config.flags.unicodeSets && config.isIgnoreCaseMode);
 			if (data.maybeIncludesStrings) {
 				if (!config.flags.unicodeSets) {
 					throw new Error(
@@ -606,7 +686,7 @@ const processTerm = (item, regenerateOptions, groups) => {
 					data.transformed = true;
 					item = processCharacterClass(item, regenerateOptions, data);
 				}
-			} else if (config.transform.unicodePropertyEscapes) {
+			} else if (config.transform.unicodePropertyEscapes || configGetCaseEqFlags()) {
 				update(
 					item,
 					data.singleChars.toString(regenerateOptions)
@@ -657,7 +737,7 @@ const processTerm = (item, regenerateOptions, groups) => {
 					delete groups.unmatchedReferences[name];
 				}
 			}
-			if (item.modifierFlags && config.transform.modifiers) {
+			if (item.modifierFlags) {
 				return processModifiers(item, regenerateOptions, groups);
 			}
 			/* falls through */
@@ -682,13 +762,13 @@ const processTerm = (item, regenerateOptions, groups) => {
 			break;
 		case 'value':
 			const codePoint = item.codePoint;
-			const set = regenerate(codePoint);
-			const folded = maybeFold(codePoint);
-			if (folded.length === 1 && item.kind === "symbol" && folded[0] >= 0x20 && folded[0] <= 0x7E) {
+			const caseEqFlags = configGetCaseEqFlags();
+			const list = concatCaseEquivalents(codePoint, caseEqFlags);
+			if (list.length === 1 && item.kind === "symbol" && codePoint >= 0x20 && codePoint <= 0x7E) {
 				// skip regenerate when it is a printable ASCII symbol
 				break;
 			}
-			set.add(folded);
+			const set = regenerate(list);
 			update(item, set.toString(regenerateOptions));
 			break;
 		case 'reference':
@@ -728,7 +808,7 @@ const processTerm = (item, regenerateOptions, groups) => {
 			}
 			break;
 		case 'anchor':
-			if (config.modifiersData.m) {
+			if (config.modifiersData.m && config.transform.modifiers) {
 				if (item.kind == 'start') {
 					update(item, `(?:^|(?<=${NEWLINE_SET.toString()}))`);
 				} else if (item.kind == 'end') {
@@ -770,6 +850,12 @@ const config = {
 	},
 	get useUnicodeFlag() {
 		return (this.flags.unicode || this.flags.unicodeSets) && !this.transform.unicodeFlag;
+	},
+	get isDotAllMode() {
+		return (this.modifiersData.s !== undefined ? this.modifiersData.s : this.flags.dotAll);
+	},
+	get isIgnoreCaseMode() {
+		return (this.modifiersData.i !== undefined ? this.modifiersData.i : this.flags.ignoreCase);
 	}
 };
 
@@ -788,6 +874,7 @@ const validateOptions = (options) => {
 					throw new Error(`.${key} must be false (default) or 'transform'.`);
 				}
 				break;
+			// todo: remove modifiers: 'parse' in regexpu-core v7
 			case 'modifiers':
 				if (value != null && value !== false && value !== 'parse' && value !== 'transform') {
 					throw new Error(`.${key} must be false (default), 'parse' or 'transform'.`);
@@ -833,9 +920,8 @@ const rewritePattern = (pattern, flags, options) => {
 	config.modifiersData.m = undefined;
 
 	const regjsparserFeatures = {
-		'modifiers': Boolean(options && options.modifiers),
-
 		// Enable every stable RegExp feature by default
+		'modifiers': true,
 		'unicodePropertyEscape': true,
 		'unicodeSet': true,
 		'namedGroups': true,
@@ -871,10 +957,8 @@ const rewritePattern = (pattern, flags, options) => {
 					for (const key of Object.keys(node)) {
 						const value = node[key];
 						if (key == 'modifierFlags') {
-							if (value.disabling.length > 0){
-								value.disabling.split('').forEach((flag)=>{
-									allDisabledModifiers[flag] = true
-								});
+							for (const flag of value.disabling) {
+								allDisabledModifiers[flag] = true;
 							}
 						} else if (typeof value == 'object' && value != null) {
 							itemStack.push(value);
@@ -882,8 +966,14 @@ const rewritePattern = (pattern, flags, options) => {
 					}
 				}
 			}
-			for (const flag of Object.keys(allDisabledModifiers)) {
-				config.modifiersData[flag] = true;
+			if (allDisabledModifiers.i) {
+				config.modifiersData.i = config.flags.ignoreCase;
+			}
+			if (allDisabledModifiers.m) {
+				config.modifiersData.m = config.flags.multiline;
+			}
+			if (allDisabledModifiers.s) {
+				config.modifiersData.s = config.flags.dotAll;
 			}
 		}
 	}
@@ -901,7 +991,7 @@ const rewritePattern = (pattern, flags, options) => {
 		if (config.transform.unicodeFlag) {
 			newFlags = newFlags.replace('u', '');
 		}
-		if (config.transform.dotAllFlag === 'transform') {
+		if (config.transform.dotAllFlag) {
 			newFlags = newFlags.replace('s', '');
 		}
 		onNewFlags(newFlags);

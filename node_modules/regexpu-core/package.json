@@ -1,6 +1,6 @@
 {
 	"name": "regexpu-core",
-	"version": "6.1.1",
+	"version": "6.2.0",
 	"description": "regexpu’s core functionality (i.e. `rewritePattern(pattern, flag)`), capable of translating ES6 Unicode regular expressions to ES5.",
 	"homepage": "https://mths.be/regexpu",
 	"main": "rewrite-pattern.js",
@@ -39,11 +39,14 @@
 	"files": [
 		"LICENSE-MIT.txt",
 		"rewrite-pattern.js",
+		"data/all-characters.js",
 		"data/character-class-escape-sets.js",
+		"data/i-bmp-mappings.js",
+		"data/iu-foldings.js",
 		"data/iu-mappings.js"
 	],
 	"scripts": {
-		"build": "node scripts/iu-mappings.js && node scripts/character-class-escape-sets.js",
+		"build": "node scripts/index.js",
 		"test": "node --test tests/tests.js",
 		"test-node6": "mocha tests",
 		"cover": "NODE_V8_COVERAGE=coverage node --test  --experimental-test-coverage tests/tests.js"
@@ -52,12 +55,12 @@
 		"regenerate": "^1.4.2",
 		"regenerate-unicode-properties": "^10.2.0",
 		"regjsgen": "^0.8.0",
-		"regjsparser": "^0.11.0",
+		"regjsparser": "^0.12.0",
 		"unicode-match-property-ecmascript": "^2.0.0",
 		"unicode-match-property-value-ecmascript": "^2.1.0"
 	},
 	"devDependencies": {
 		"jsesc": "^3.0.2",
-		"@unicode/unicode-16.0.0": "^1.6.0"
+		"@unicode/unicode-16.0.0": "^1.6.2"
 	}
 }
