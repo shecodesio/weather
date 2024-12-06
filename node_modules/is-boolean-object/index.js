@@ -4,6 +4,7 @@ var callBound = require('call-bind/callBound');
 var $boolToStr = callBound('Boolean.prototype.toString');
 var $toString = callBound('Object.prototype.toString');
 
+/** @type {import('.')} */
 var tryBooleanObject = function booleanBrandCheck(value) {
 	try {
 		$boolToStr(value);
@@ -15,6 +16,7 @@ var tryBooleanObject = function booleanBrandCheck(value) {
 var boolClass = '[object Boolean]';
 var hasToStringTag = require('has-tostringtag/shams')();
 
+/** @type {import('.')} */
 module.exports = function isBoolean(value) {
 	if (typeof value === 'boolean') {
 		return true;

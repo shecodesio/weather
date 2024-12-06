@@ -49,6 +49,8 @@ class Printer {
     this._indentInnerComments = true;
     this.tokenMap = null;
     this._boundGetRawIdentifier = this._getRawIdentifier.bind(this);
+    this._printSemicolonBeforeNextNode = -1;
+    this._printSemicolonBeforeNextToken = -1;
     this.format = format;
     this._tokens = tokens;
     this._originalCode = originalCode;
@@ -113,6 +115,7 @@ class Printer {
       const node = this._currentNode;
       if (node.start != null && node.end != null) {
         if (!this.tokenMap.endMatches(node, ";")) {
+          this._printSemicolonBeforeNextNode = this._buf.getCurrentLine();
           return;
         }
         const indexes = this.tokenMap.getIndexes(this._currentNode);
@@ -150,10 +153,11 @@ class Printer {
   word(str, noLineTerminatorAfter = false) {
     this.tokenContext = 0;
     this._maybePrintInnerComments(str);
+    this._maybeAddAuxComment();
+    if (this.tokenMap) this._catchUpToCurrentToken(str);
     if (this._endsWithWord || this._endsWithDiv && str.charCodeAt(0) === 47) {
       this._space();
     }
-    this._maybeAddAuxComment();
     this._append(str, false);
     this._endsWithWord = true;
     this._noLineTerminator = noLineTerminatorAfter;
@@ -172,23 +176,26 @@ class Printer {
   token(str, maybeNewline = false, occurrenceCount = 0) {
     this.tokenContext = 0;
     this._maybePrintInnerComments(str, occurrenceCount);
+    this._maybeAddAuxComment();
+    if (this.tokenMap) this._catchUpToCurrentToken(str, occurrenceCount);
     const lastChar = this.getLastChar();
     const strFirst = str.charCodeAt(0);
     if (lastChar === 33 && (str === "--" || strFirst === 61) || strFirst === 43 && lastChar === 43 || strFirst === 45 && lastChar === 45 || strFirst === 46 && this._endsWithInteger) {
       this._space();
     }
-    this._maybeAddAuxComment();
-    this._append(str, maybeNewline, occurrenceCount);
+    this._append(str, maybeNewline);
     this._noLineTerminator = false;
   }
   tokenChar(char) {
     this.tokenContext = 0;
-    this._maybePrintInnerComments(String.fromCharCode(char));
+    const str = String.fromCharCode(char);
+    this._maybePrintInnerComments(str);
+    this._maybeAddAuxComment();
+    if (this.tokenMap) this._catchUpToCurrentToken(str);
     const lastChar = this.getLastChar();
     if (char === 43 && lastChar === 43 || char === 45 && lastChar === 45 || char === 46 && this._endsWithInteger) {
       this._space();
     }
-    this._maybeAddAuxComment();
     this._appendChar(char);
     this._noLineTerminator = false;
   }
@@ -250,11 +257,19 @@ class Printer {
   _newline() {
     this._queue(10);
   }
-  _append(str, maybeNewline, occurrenceCount = 0) {
-    if (this.tokenMap) {
-      const token = this.tokenMap.findMatching(this._currentNode, str, occurrenceCount);
-      if (token) this._catchUpTo(token.loc.start);
+  _catchUpToCurrentToken(str, occurrenceCount = 0) {
+    const token = this.tokenMap.findMatching(this._currentNode, str, occurrenceCount);
+    if (token) this._catchUpTo(token.loc.start);
+    if (this._printSemicolonBeforeNextToken !== -1 && this._printSemicolonBeforeNextToken === this._buf.getCurrentLine()) {
+      this._buf.appendChar(59);
+      this._endsWithWord = false;
+      this._endsWithInteger = false;
+      this._endsWithDiv = false;
     }
+    this._printSemicolonBeforeNextToken = -1;
+    this._printSemicolonBeforeNextNode = -1;
+  }
+  _append(str, maybeNewline) {
     this._maybeIndent(str.charCodeAt(0));
     this._buf.append(str, maybeNewline);
     this._endsWithWord = false;
@@ -262,10 +277,6 @@ class Printer {
     this._endsWithDiv = false;
   }
   _appendChar(char) {
-    if (this.tokenMap) {
-      const token = this.tokenMap.findMatching(this._currentNode, String.fromCharCode(char));
-      if (token) this._catchUpTo(token.loc.start);
-    }
     this._maybeIndent(char);
     this._buf.appendChar(char);
     this._endsWithWord = false;
@@ -349,6 +360,9 @@ class Printer {
     }
     const parent = this._currentNode;
     this._currentNode = node;
+    if (this.tokenMap) {
+      this._printSemicolonBeforeNextToken = this._printSemicolonBeforeNextNode;
+    }
     const oldInAux = this._insideAux;
     this._insideAux = node.loc == null;
     this._maybeAddAuxComment(this._insideAux && !oldInAux);
@@ -459,11 +473,8 @@ class Printer {
       return extra.raw;
     }
   }
-  printJoin(nodes, opts = {}) {
+  printJoin(nodes, statement, indent, separator, printTrailingSeparator, addNewlines, iterator, trailingCommentsLineOffset) {
     if (!(nodes != null && nodes.length)) return;
-    let {
-      indent
-    } = opts;
     if (indent == null && this.format.retainLines) {
       var _nodes$0$loc;
       const startLine = (_nodes$0$loc = nodes[0].loc) == null ? void 0 : _nodes$0$loc.start.line;
@@ -473,21 +484,21 @@ class Printer {
     }
     if (indent) this.indent();
     const newlineOpts = {
-      addNewlines: opts.addNewlines,
+      addNewlines: addNewlines,
       nextNodeStartLine: 0
     };
-    const separator = opts.separator ? opts.separator.bind(this) : null;
+    const boundSeparator = separator == null ? void 0 : separator.bind(this);
     const len = nodes.length;
     for (let i = 0; i < len; i++) {
       const node = nodes[i];
       if (!node) continue;
-      if (opts.statement) this._printNewline(i === 0, newlineOpts);
-      this.print(node, undefined, opts.trailingCommentsLineOffset || 0);
-      opts.iterator == null || opts.iterator(node, i);
-      if (separator != null) {
-        if (i < len - 1) separator(i, false);else if (opts.printTrailingSeparator) separator(i, true);
+      if (statement) this._printNewline(i === 0, newlineOpts);
+      this.print(node, undefined, trailingCommentsLineOffset || 0);
+      iterator == null || iterator(node, i);
+      if (boundSeparator != null) {
+        if (i < len - 1) boundSeparator(i, false);else if (printTrailingSeparator) boundSeparator(i, true);
       }
-      if (opts.statement) {
+      if (statement) {
         var _node$trailingComment2;
         if (!((_node$trailingComment2 = node.trailingComments) != null && _node$trailingComment2.length)) {
           this._lastCommentLine = 0;
@@ -559,17 +570,11 @@ class Printer {
   noIndentInnerCommentsHere() {
     this._indentInnerComments = false;
   }
-  printSequence(nodes, opts = {}) {
-    var _opts$indent;
-    opts.statement = true;
-    (_opts$indent = opts.indent) != null ? _opts$indent : opts.indent = false;
-    this.printJoin(nodes, opts);
+  printSequence(nodes, indent, trailingCommentsLineOffset, addNewlines) {
+    this.printJoin(nodes, true, indent != null ? indent : false, undefined, undefined, addNewlines, undefined, trailingCommentsLineOffset);
   }
-  printList(items, opts = {}) {
-    if (opts.separator == null) {
-      opts.separator = commaSeparator;
-    }
-    this.printJoin(items, opts);
+  printList(items, printTrailingSeparator, statement, indent, separator, iterator) {
+    this.printJoin(items, statement, indent, separator != null ? separator : commaSeparator, printTrailingSeparator, undefined, iterator);
   }
   shouldPrintTrailingComma(listEnd) {
     if (!this.tokenMap) return null;
@@ -655,8 +660,21 @@ class Printer {
       val = `/*${comment.value}*/`;
     }
     if (this._endsWithDiv) this._space();
-    this.source("start", comment.loc);
-    this._append(val, isBlockComment);
+    if (this.tokenMap) {
+      const {
+        _printSemicolonBeforeNextToken,
+        _printSemicolonBeforeNextNode
+      } = this;
+      this._printSemicolonBeforeNextToken = -1;
+      this._printSemicolonBeforeNextNode = -1;
+      this.source("start", comment.loc);
+      this._append(val, isBlockComment);
+      this._printSemicolonBeforeNextNode = _printSemicolonBeforeNextNode;
+      this._printSemicolonBeforeNextToken = _printSemicolonBeforeNextToken;
+    } else {
+      this.source("start", comment.loc);
+      this._append(val, isBlockComment);
+    }
     if (!isBlockComment && !noLineTerminator) {
       this.newline(1, true);
     }

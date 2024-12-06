@@ -83,9 +83,7 @@ function JSXOpeningElement(node) {
   this.print(node.typeParameters);
   if (node.attributes.length > 0) {
     this.space();
-    this.printJoin(node.attributes, {
-      separator: spaceSeparator
-    });
+    this.printJoin(node.attributes, undefined, undefined, spaceSeparator);
   }
   if (node.selfClosing) {
     this.space();

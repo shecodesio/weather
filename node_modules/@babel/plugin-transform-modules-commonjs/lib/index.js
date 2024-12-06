@@ -12,7 +12,6 @@ Object.defineProperty(exports, "defineCommonJSHook", {
 });
 var _helperPluginUtils = require("@babel/helper-plugin-utils");
 var _helperModuleTransforms = require("@babel/helper-module-transforms");
-var _helperSimpleAccess = require("@babel/helper-simple-access");
 var _core = require("@babel/core");
 var _dynamicImport = require("./dynamic-import.js");
 var _lazy = require("./lazy.js");
@@ -129,9 +128,6 @@ var _default = exports.default = (0, _helperPluginUtils.declare)((api, options) 
           path.scope.rename("__filename");
           path.scope.rename("__dirname");
           if (!allowCommonJSExports) {
-            {
-              (0, _helperSimpleAccess.default)(path, new Set(["module", "exports"]), false);
-            }
             path.traverse(moduleExportsVisitor, {
               scope: path.scope
             });

@@ -106,6 +106,7 @@ const makeSerializable = require("./util/makeSerializable");
  * @property {boolean=} strictHarmonyModule
  * @property {boolean=} async
  * @property {boolean=} sideEffectFree
+ * @property {Record<string, string>=} exportsFinalName
  */
 
 /**
@@ -199,6 +200,9 @@ class Module extends DependenciesBlock {
 		/** @type {boolean} */
 		this.useSimpleSourceMap = false;
 
+		// Is in hot context, i.e. HotModuleReplacementPlugin.js enabled
+		/** @type {boolean} */
+		this.hot = false;
 		// Info from Build
 		/** @type {WebpackError[] | undefined} */
 		this._warnings = undefined;
@@ -1074,6 +1078,7 @@ class Module extends DependenciesBlock {
 		write(this.factoryMeta);
 		write(this.useSourceMap);
 		write(this.useSimpleSourceMap);
+		write(this.hot);
 		write(
 			this._warnings !== undefined && this._warnings.length === 0
 				? undefined
@@ -1103,6 +1108,7 @@ class Module extends DependenciesBlock {
 		this.factoryMeta = read();
 		this.useSourceMap = read();
 		this.useSimpleSourceMap = read();
+		this.hot = read();
 		this._warnings = read();
 		this._errors = read();
 		this.buildMeta = read();

@@ -83,9 +83,7 @@ function TSTypeParameterInstantiation(node, parent) {
     printTrailingSeparator && (printTrailingSeparator = !!this.tokenMap.find(node, t => this.tokenMap.matchesOriginal(t, ",")));
     printTrailingSeparator || (printTrailingSeparator = this.shouldPrintTrailingComma(">"));
   }
-  this.printList(node.params, {
-    printTrailingSeparator
-  });
+  this.printList(node.params, printTrailingSeparator);
   this.tokenChar(62);
 }
 function TSTypeParameter(node) {
@@ -306,10 +304,7 @@ function TSTypeQuery(node) {
   }
 }
 function TSTypeLiteral(node) {
-  printBraced(this, node, () => this.printJoin(node.members, {
-    indent: true,
-    statement: true
-  }));
+  printBraced(this, node, () => this.printJoin(node.members, true, true));
 }
 function TSArrayType(node) {
   this.print(node.elementType, true);
@@ -318,9 +313,7 @@ function TSArrayType(node) {
 }
 function TSTupleType(node) {
   this.tokenChar(91);
-  this.printList(node.elementTypes, {
-    printTrailingSeparator: this.shouldPrintTrailingComma("]")
-  });
+  this.printList(node.elementTypes, this.shouldPrintTrailingComma("]"));
   this.tokenChar(93);
 }
 function TSOptionalType(node) {
@@ -351,12 +344,10 @@ function tsPrintUnionOrIntersectionType(printer, node, sep) {
     hasLeadingToken = 1;
     printer.token(sep);
   }
-  printer.printJoin(node.types, {
-    separator(i) {
-      this.space();
-      this.token(sep, null, i + hasLeadingToken);
-      this.space();
-    }
+  printer.printJoin(node.types, undefined, undefined, function (i) {
+    this.space();
+    this.token(sep, null, i + hasLeadingToken);
+    this.space();
   });
 }
 function TSConditionalType(node) {
@@ -477,10 +468,7 @@ function TSInterfaceDeclaration(node) {
   this.print(body);
 }
 function TSInterfaceBody(node) {
-  printBraced(this, node, () => this.printJoin(node.body, {
-    indent: true,
-    statement: true
-  }));
+  printBraced(this, node, () => this.printJoin(node.body, true, true));
 }
 function TSTypeAliasDeclaration(node) {
   const {
@@ -551,11 +539,7 @@ function TSEnumDeclaration(node) {
   this.space();
   printBraced(this, node, () => {
     var _this$shouldPrintTrai;
-    return this.printList(members, {
-      indent: true,
-      statement: true,
-      printTrailingSeparator: (_this$shouldPrintTrai = this.shouldPrintTrailingComma("}")) != null ? _this$shouldPrintTrai : true
-    });
+    return this.printList(members, (_this$shouldPrintTrai = this.shouldPrintTrailingComma("}")) != null ? _this$shouldPrintTrai : true, true, true);
   });
 }
 function TSEnumMember(node) {
@@ -581,28 +565,28 @@ function TSModuleDeclaration(node) {
     this.word("declare");
     this.space();
   }
-  if (!node.global) {
-    this.word(kind != null ? kind : id.type === "Identifier" ? "namespace" : "module");
+  {
+    if (!node.global) {
+      this.word(kind != null ? kind : id.type === "Identifier" ? "namespace" : "module");
+      this.space();
+    }
+    this.print(id);
+    if (!node.body) {
+      this.semicolon();
+      return;
+    }
+    let body = node.body;
+    while (body.type === "TSModuleDeclaration") {
+      this.tokenChar(46);
+      this.print(body.id);
+      body = body.body;
+    }
     this.space();
+    this.print(body);
   }
-  this.print(id);
-  if (!node.body) {
-    this.semicolon();
-    return;
-  }
-  let body = node.body;
-  while (body.type === "TSModuleDeclaration") {
-    this.tokenChar(46);
-    this.print(body.id);
-    body = body.body;
-  }
-  this.space();
-  this.print(body);
 }
 function TSModuleBlock(node) {
-  printBraced(this, node, () => this.printSequence(node.body, {
-    indent: true
-  }));
+  printBraced(this, node, () => this.printSequence(node.body, true));
 }
 function TSImportType(node) {
   const {

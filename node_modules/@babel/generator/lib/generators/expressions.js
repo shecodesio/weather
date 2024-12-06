@@ -106,9 +106,7 @@ function NewExpression(node, parent) {
   }
   this.tokenChar(40);
   const exit = this.enterDelimited();
-  this.printList(node.arguments, {
-    printTrailingSeparator: this.shouldPrintTrailingComma(")")
-  });
+  this.printList(node.arguments, this.shouldPrintTrailingComma(")"));
   exit();
   this.rightParens(node);
 }
@@ -180,9 +178,7 @@ function CallExpression(node) {
   this.print(node.typeParameters);
   this.tokenChar(40);
   const exit = this.enterDelimited();
-  this.printList(node.arguments, {
-    printTrailingSeparator: this.shouldPrintTrailingComma(")")
-  });
+  this.printList(node.arguments, this.shouldPrintTrailingComma(")"));
   exit();
   this.rightParens(node);
 }

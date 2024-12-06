@@ -49,12 +49,12 @@ function createRegExpFeaturePlugin({
       }
       {
         if (typeof file.get(versionKey) === "number") {
-          file.set(versionKey, "7.25.9");
+          file.set(versionKey, "7.26.3");
           return;
         }
       }
-      if (!file.get(versionKey) || _semver.lt(file.get(versionKey), "7.25.9")) {
-        file.set(versionKey, "7.25.9");
+      if (!file.get(versionKey) || _semver.lt(file.get(versionKey), "7.26.3")) {
+        file.set(versionKey, "7.26.3");
       }
     },
     visitor: {

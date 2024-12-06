@@ -6,6 +6,7 @@ var hasToStringTag = require('has-tostringtag/shams')();
 
 test('not Booleans', function (t) {
 	t.test('primitives', function (st) {
+		// @ts-expect-error
 		st.notOk(isBoolean(), 'undefined is not Boolean');
 		st.notOk(isBoolean(null), 'null is not Boolean');
 		st.notOk(isBoolean(0), '0 is not Boolean');
@@ -30,6 +31,7 @@ test('not Booleans', function (t) {
 });
 
 test('@@toStringTag', { skip: !hasToStringTag }, function (t) {
+	/** @type {{ toString(): unknown; valueOf(): unknown; [Symbol.toStringTag]?: string; }} */
 	var fakeBoolean = {
 		toString: function () { return 'true'; },
 		valueOf: function () { return true; }
