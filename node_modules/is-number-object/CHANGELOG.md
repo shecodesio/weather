@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.1](https://github.com/inspect-js/is-number-object/compare/v1.1.0...v1.1.1) - 2024-12-15
+
+### Commits
+
+- [Dev Deps] update `@arethetypeswrong/cli`,` @ljharb/tsconfig`, `@types/tape` [`00d566d`](https://github.com/inspect-js/is-number-object/commit/00d566d869ee316c896aa6f3cd694996bab6f482)
+- [Refactor] use `call-bound` directly [`073d5df`](https://github.com/inspect-js/is-number-object/commit/073d5df97278ab54e32750f24d4eeee1d94965d4)
+- [Deps] update `call-bind` [`36c84af`](https://github.com/inspect-js/is-number-object/commit/36c84afd5553a538cceb3da56a8721b597f540bc)
+
 ## [v1.1.0](https://github.com/inspect-js/is-number-object/compare/v1.0.7...v1.1.0) - 2024-12-01
 
 ### Commits
