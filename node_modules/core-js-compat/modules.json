@@ -316,6 +316,7 @@
   "esnext.data-view.set-float16",
   "esnext.data-view.set-uint8-clamped",
   "esnext.disposable-stack.constructor",
+  "esnext.error.is-error",
   "esnext.function.demethodize",
   "esnext.function.is-callable",
   "esnext.function.is-constructor",

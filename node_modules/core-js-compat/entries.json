@@ -317,6 +317,7 @@
     "esnext.data-view.set-float16",
     "esnext.data-view.set-uint8-clamped",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.demethodize",
     "esnext.function.is-callable",
     "esnext.function.is-constructor",
@@ -805,6 +806,7 @@
     "esnext.data-view.get-float16",
     "esnext.data-view.set-float16",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.metadata",
     "esnext.global-this",
     "esnext.iterator.constructor",
@@ -1567,10 +1569,16 @@
   ],
   "core-js/actual/error": [
     "es.error.cause",
-    "es.error.to-string"
+    "es.error.to-string",
+    "es.object.create",
+    "esnext.error.is-error"
   ],
   "core-js/actual/error/constructor": [
     "es.error.cause"
+  ],
+  "core-js/actual/error/is-error": [
+    "es.object.create",
+    "esnext.error.is-error"
   ],
   "core-js/actual/error/to-string": [
     "es.error.to-string"
@@ -6406,6 +6414,7 @@
     "esnext.data-view.set-float16",
     "esnext.data-view.set-uint8-clamped",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.demethodize",
     "esnext.function.is-callable",
     "esnext.function.is-constructor",
@@ -7353,10 +7362,16 @@
   ],
   "core-js/features/error": [
     "es.error.cause",
-    "es.error.to-string"
+    "es.error.to-string",
+    "es.object.create",
+    "esnext.error.is-error"
   ],
   "core-js/features/error/constructor": [
     "es.error.cause"
+  ],
+  "core-js/features/error/is-error": [
+    "es.object.create",
+    "esnext.error.is-error"
   ],
   "core-js/features/error/to-string": [
     "es.error.to-string"
@@ -10574,6 +10589,7 @@
     "esnext.data-view.set-float16",
     "esnext.data-view.set-uint8-clamped",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.demethodize",
     "esnext.function.is-callable",
     "esnext.function.is-constructor",
@@ -11521,10 +11537,16 @@
   ],
   "core-js/full/error": [
     "es.error.cause",
-    "es.error.to-string"
+    "es.error.to-string",
+    "es.object.create",
+    "esnext.error.is-error"
   ],
   "core-js/full/error/constructor": [
     "es.error.cause"
+  ],
+  "core-js/full/error/is-error": [
+    "es.object.create",
+    "esnext.error.is-error"
   ],
   "core-js/full/error/to-string": [
     "es.error.to-string"
@@ -15426,6 +15448,9 @@
   "core-js/modules/esnext.disposable-stack.constructor": [
     "esnext.disposable-stack.constructor"
   ],
+  "core-js/modules/esnext.error.is-error": [
+    "esnext.error.is-error"
+  ],
   "core-js/modules/esnext.function.demethodize": [
     "esnext.function.demethodize"
   ],
@@ -16056,6 +16081,7 @@
     "esnext.data-view.set-float16",
     "esnext.data-view.set-uint8-clamped",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.demethodize",
     "esnext.function.is-callable",
     "esnext.function.is-constructor",
@@ -16441,6 +16467,9 @@
   ],
   "core-js/proposals/global-this": [
     "esnext.global-this"
+  ],
+  "core-js/proposals/is-error": [
+    "esnext.error.is-error"
   ],
   "core-js/proposals/iterator-helpers": [
     "esnext.async-iterator.constructor",
@@ -19330,6 +19359,7 @@
     "esnext.data-view.set-float16",
     "esnext.data-view.set-uint8-clamped",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.demethodize",
     "esnext.function.is-callable",
     "esnext.function.is-constructor",
@@ -19552,6 +19582,7 @@
     "esnext.data-view.set-float16",
     "esnext.data-view.set-uint8-clamped",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.demethodize",
     "esnext.function.is-callable",
     "esnext.function.is-constructor",
@@ -19764,6 +19795,7 @@
     "esnext.data-view.set-float16",
     "esnext.data-view.set-uint8-clamped",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.metadata",
     "esnext.global-this",
     "esnext.iterator.constructor",
@@ -19948,6 +19980,7 @@
     "esnext.data-view.get-float16",
     "esnext.data-view.set-float16",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.metadata",
     "esnext.global-this",
     "esnext.iterator.constructor",
@@ -20068,6 +20101,7 @@
     "esnext.data-view.get-float16",
     "esnext.data-view.set-float16",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.metadata",
     "esnext.global-this",
     "esnext.iterator.constructor",
@@ -20164,6 +20198,7 @@
     "esnext.data-view.get-float16",
     "esnext.data-view.set-float16",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.metadata",
     "esnext.global-this",
     "esnext.iterator.constructor",
@@ -20325,6 +20360,7 @@
     "esnext.data-view.set-float16",
     "esnext.data-view.set-uint8-clamped",
     "esnext.disposable-stack.constructor",
+    "esnext.error.is-error",
     "esnext.function.demethodize",
     "esnext.function.is-callable",
     "esnext.function.is-constructor",
