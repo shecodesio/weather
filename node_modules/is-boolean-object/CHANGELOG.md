@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.2](https://github.com/inspect-js/is-boolean-object/compare/v1.2.1...v1.2.2) - 2025-02-04
+
+### Fixed
+
+- [Fix] do not be tricked by fake Booleans [`#25`](https://github.com/inspect-js/is-boolean-object/issues/25)
+
+### Commits
+
+- [Dev Deps] update `@arethetypeswrong/cli`, `@ljharb/tsconfig`, `@types/tape`, `core-js` [`a27608b`](https://github.com/inspect-js/is-boolean-object/commit/a27608b83f154875736bb5e77bf1a70da307b64f)
+- [Deps] update `call-bound` [`b19953f`](https://github.com/inspect-js/is-boolean-object/commit/b19953f90f88435a0b0888692f065c959812f710)
+
 ## [v1.2.1](https://github.com/inspect-js/is-boolean-object/compare/v1.2.0...v1.2.1) - 2024-12-12
 
 ### Commits

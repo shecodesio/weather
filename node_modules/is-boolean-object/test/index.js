@@ -1,8 +1,10 @@
 'use strict';
 
 var test = require('tape');
-var isBoolean = require('../');
 var hasToStringTag = require('has-tostringtag/shams')();
+var inspect = require('object-inspect');
+
+var isBoolean = require('../');
 
 test('not Booleans', function (t) {
 	t.test('primitives', function (st) {
@@ -46,5 +48,26 @@ test('Booleans', function (t) {
 	t.ok(isBoolean(false), 'false is Boolean');
 	t.ok(isBoolean(Object(true)), 'Object(true) is Boolean');
 	t.ok(isBoolean(Object(false)), 'Object(false) is Boolean');
+	t.end();
+});
+
+test('Proxy', { skip: typeof Proxy !== 'function' || !hasToStringTag }, function (t) {
+	/** @type {Record<PropertyKey, unknown>} */
+	var target = {};
+	target[Symbol.toStringTag] = 'Boolean';
+	var fake = new Proxy(target, { has: function () { return false; } });
+
+	t.equal(
+		isBoolean(target),
+		false,
+		inspect(target) + ' is not a Boolean'
+	);
+
+	t.equal(
+		isBoolean(fake),
+		false,
+		inspect(fake) + ' is not a Boolean'
+	);
+
 	t.end();
 });

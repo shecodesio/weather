@@ -24,5 +24,5 @@ module.exports = function isBoolean(value) {
 	if (value === null || typeof value !== 'object') {
 		return false;
 	}
-	return hasToStringTag && Symbol.toStringTag in value ? tryBooleanObject(value) : $toString(value) === boolClass;
+	return hasToStringTag ? tryBooleanObject(value) : $toString(value) === boolClass;
 };
