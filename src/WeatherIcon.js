@@ -16,7 +16,7 @@ export default function WeatherIcon(props) {
     "rain-day": "RAIN",
     "rain-night": "RAIN",
     "thunderstorm-day": "RAIN",
-    "thunderstorm-night'": "RAIN",
+    "thunderstorm-night": "RAIN",
     "snow-day": "SNOW",
     "snow-night": "SNOW",
     "mist-day": "FOG",

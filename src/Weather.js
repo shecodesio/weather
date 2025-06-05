@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import WeatherInfo from "./WeatherInfo";
 import WeatherForecast from "./WeatherForecast";
 import axios from "axios";
@@ -37,6 +37,11 @@ export default function Weather(props) {
 
     axios.get(apiUrl).then(handleResponse);
   }
+
+  useEffect(() => {
+    search();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (weatherData.ready) {
     return (
@@ -98,7 +103,6 @@ export default function Weather(props) {
       </div>
     );
   } else {
-    search();
     return "Loading...";
   }
 }
