@@ -474,6 +474,9 @@ p12.pkcs12FromAsn1 = function(obj, strict, password) {
     if(macValue.getBytes() !== capture.macDigest) {
       throw new Error('PKCS#12 MAC could not be verified. Invalid password?');
     }
+  } else if(Array.isArray(obj.value) && obj.value.length > 2) {
+    /* This is pfx data that should have mac and verify macDigest */
+    throw new Error('Invalid PKCS#12. macData field present but MAC was not validated.');
   }
 
   _decodeAuthenticatedSafe(pfx, data.value, strict, password);
