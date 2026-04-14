@@ -164,7 +164,7 @@ function prefixTrackValue({ gap, value }) {
 
 // Parse grid-template-areas
 
-let DOTS = /^\.+$/
+const DOTS = /^\.+$/
 
 function track(start, end) {
   return { end, span: end - start, start }

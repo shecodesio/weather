@@ -4,7 +4,7 @@ let OldValue = require('../old-value')
 let utils = require('../utils')
 let Value = require('../value')
 
-let IS_DIRECTION = /top|left|right|bottom/gi
+const IS_DIRECTION = /top|left|right|bottom/gi
 
 class Gradient extends Value {
   /**
@@ -229,7 +229,7 @@ class Gradient extends Value {
       nodes[0].value = this.normalizeUnit(nodes[0].value, 1)
     } else if (nodes[0].value.includes('deg')) {
       let num = parseFloat(nodes[0].value)
-      num = (num % 360 + 360) % 360
+      num = ((num % 360) + 360) % 360
       nodes[0].value = `${num}deg`
     }
 

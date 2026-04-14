@@ -320,7 +320,7 @@ class Transition {
       nodes = nodes.slice(1)
     }
     if (nodes[nodes.length - 1].type === 'div') {
-      nodes = nodes.slice(0, +-2 + 1 || undefined)
+      nodes = nodes.slice(0, -1)
     }
     return parser.stringify({ nodes })
   }
